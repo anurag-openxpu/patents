@@ -1,20 +1,529 @@
 <!doctype html>
+<!-- Copyright (c) 2026 OXMIQ -->
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>OXMIQ Patent Portfolio Hub</title>
 <style>
-  html,body{margin:0;height:100%;background:#0f1115;color:#e7e9ee;
-    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;display:grid;place-items:center}
-  .box{text-align:center;max-width:420px;padding:30px}
-  .mark{width:48px;height:48px;border-radius:12px;margin:0 auto 16px;
-    background:linear-gradient(135deg,#5b8cff,#7c5cff);display:grid;place-items:center;font-size:22px}
-  h1{font-size:19px;margin:0 0 8px} p{color:#9aa3b2;font-size:13.5px;line-height:1.6}
-</style></head>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --panel3:#242832; --line:#2a2f3a;
+    --txt:#e7e9ee; --muted:#9aa3b2; --dim:#6b7382;
+    --brand:#5b8cff; --brand2:#7c5cff;
+    --ok:#43b581; --pending:#6ea8fe; --oa:#e0a13a; --expired:#f0616d; --prov:#b79cff; --draft:#8b96a5;
+    --chip:#232936; --shadow:0 2px 8px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.28); --radius:12px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--txt);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none} .muted{color:var(--muted)} .dim{color:var(--dim)}
+  .tabnum{font-variant-numeric:tabular-nums}
+
+  /* ---------- header ---------- */
+  header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,#12151c,#12151cf2);
+    border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  .topbar{display:flex;align-items:center;gap:16px;padding:11px 22px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
+  .logo .mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand2));
+    display:grid;place-items:center;font-size:15px;box-shadow:var(--shadow)}
+  .badge-sb{font-size:10.5px;font-weight:600;color:#ffd27a;border:1px dashed #6b5a2e;background:#241f12;
+    padding:3px 9px;border-radius:20px;letter-spacing:.3px}
+  .spacer{flex:1}
+  .anno-toggle{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px;cursor:pointer;
+    border:1px solid var(--line);padding:6px 11px;border-radius:9px;user-select:none}
+  .anno-toggle input{accent-color:var(--brand)}
+  .role-switch{display:flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:11px;padding:4px}
+  .role-switch button{border:0;background:transparent;color:var(--muted);padding:7px 11px;border-radius:8px;
+    cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;font-family:inherit}
+  .role-switch button.active{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff}
+
+  /* ---------- top tab nav ---------- */
+  nav.tabs{display:flex;gap:2px;padding:0 18px;border-bottom:1px solid var(--line);background:#12151c;
+    overflow-x:auto}
+  nav.tabs a{padding:11px 15px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+    display:flex;align-items:center;gap:8px;font-weight:500;white-space:nowrap}
+  nav.tabs a:hover{color:var(--txt)}
+  nav.tabs a.active{color:#fff;border-bottom-color:var(--brand)}
+  nav.tabs a.tier{position:relative}
+  nav.tabs a.hidden{display:none}
+  .pill-count{background:var(--brand);color:#fff;font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px}
+  .tier-tag{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;padding:1px 6px;border-radius:5px;font-weight:700}
+  .tt-com{background:#2a2350;color:#b79cff} .tt-exec{background:#3a1e22;color:#f08a92} .tt-cou{background:#123524;color:#54d391}
+
+  main{max-width:1200px;margin:0 auto;padding:24px 26px 60px}
+  .page{display:none} .page.show{display:block;animation:fade .22s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  h1{font-size:22px;margin:0 0 3px;letter-spacing:-.3px} h2{font-size:15px;margin:24px 0 12px}
+  .sub{color:var(--muted);margin-bottom:16px;max-width:70ch}
+
+  /* ---------- annotations ---------- */
+  .anno{border:1px dashed #6b5a2e;background:#241f1233;border-radius:11px;padding:11px 14px;margin:14px 0;
+    font-size:12.5px;color:#e9c88a;display:flex;gap:10px;align-items:flex-start}
+  .anno .tag{background:#6b5a2e;color:#fff;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:6px;
+    letter-spacing:.06em;flex:0 0 auto;margin-top:1px}
+  #rolewrap.hide-anno .anno{display:none}
+
+  /* ---------- cards / kpis ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;
+    box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent,var(--brand))}
+  .kpi .n{font-size:27px;font-weight:750;letter-spacing:-.5px} .kpi .l{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .kpi .d{font-size:11px;margin-top:7px;color:var(--dim)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid15{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 17px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 13px;font-size:13.5px;display:flex;align-items:center;gap:8px}
+  .card h3 .hint{margin-left:auto;font-size:11px;color:var(--dim);font-weight:400}
+  .ticket{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:8px;font-size:12.5px}
+  .ticket .who{color:var(--dim);font-size:11px;margin-top:4px}
+
+  /* role gating */
+  #rolewrap[data-role="employee"] .tier-committee,
+  #rolewrap[data-role="employee"] .tier-exec,
+  body[data-role="counsel"] .tier-committee,
+  body[data-role="counsel"] .tier-exec{display:none}
+  #rolewrap[data-role="committee"] .tier-exec{display:none}
+
+  /* ---------- badges / pills ---------- */
+  .badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+  .dot{width:6px;height:6px;border-radius:50%}
+  .b-oa{background:rgba(224,161,58,.15);color:var(--oa)} .b-pending{background:rgba(110,168,254,.14);color:var(--pending)}
+  .b-expired{background:rgba(240,97,109,.15);color:var(--expired)} .b-prov{background:rgba(183,156,255,.15);color:var(--prov)}
+  .b-granted{background:rgba(67,181,129,.15);color:var(--ok)} .b-draft{background:rgba(139,150,165,.16);color:var(--draft)}
+  .b-mine{background:rgba(91,140,255,.16);color:var(--brand)}
+
+  /* ---------- bars / donut ---------- */
+  .barrow{display:flex;align-items:center;gap:10px;margin:9px 0}
+  .barrow .k{width:140px;color:var(--muted);font-size:12.5px;flex:0 0 140px;display:flex;align-items:center;gap:7px}
+  .swatch{width:9px;height:9px;border-radius:2px;flex:0 0 9px}
+  .bar{flex:1;height:8px;background:#232936;border-radius:5px;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:5px}
+  .barrow .v{width:26px;text-align:right;font-weight:700;font-size:12.5px}
+  .donutwrap{display:flex;align-items:center;gap:22px}
+  .legend{display:flex;flex-direction:column;gap:7px}
+  .legend div{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)}
+
+  /* ---------- explorer ---------- */
+  .bigsearch{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:11px 15px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .bigsearch input{flex:1;background:transparent;border:0;color:var(--txt);font-size:15px;outline:none;font-family:inherit}
+  .facets{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+  .facet{background:var(--panel2);border:1px solid var(--line);color:var(--muted);font-size:12px;padding:5px 11px;
+    border-radius:20px;cursor:pointer}
+  .facet:hover,.facet.on{border-color:var(--brand);color:var(--brand)}
+  .mine-toggle{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);cursor:pointer;
+    border:1px solid var(--line);border-radius:20px;padding:5px 12px;user-select:none}
+  .mine-toggle input{accent-color:var(--brand)}
+  .mine-toggle.on{border-color:var(--brand);color:var(--brand)}
+  .explorer{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;align-items:start}
+  .listcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+    overflow:hidden;display:flex;flex-direction:column;max-height:600px}
+  .gallery{overflow-y:auto}
+  .pcard{display:flex;gap:12px;padding:12px 14px;cursor:pointer;border-bottom:1px solid #212530}
+  .pcard:hover{background:var(--panel2)} .pcard.sel{background:var(--panel2);box-shadow:inset 3px 0 0 var(--brand)}
+  .pcard .docket{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--brand);font-weight:600;flex:0 0 56px}
+  .pcard .body{flex:1;min-width:0}
+  .pcard .ttl{font-size:13px;font-weight:500;line-height:1.35}
+  .pcard .meta{display:flex;gap:9px;flex-wrap:wrap;margin-top:5px;color:var(--dim);font-size:11px;align-items:center}
+  .rescount{font-size:12px;color:var(--dim);padding:10px 14px;border-bottom:1px solid var(--line)}
+  .detail{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:18px 19px 24px;position:sticky;top:120px}
+  .detail .dk{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--brand);font-weight:600}
+  .detail h2{margin:6px 0 9px;font-size:18px;line-height:1.3;text-wrap:balance}
+  .abs{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;color:var(--muted);
+    font-size:12.5px;line-height:1.6;margin:12px 0}
+  .metagrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
+  .metabox{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:9px 11px}
+  .metabox .ml{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
+  .metabox .mv{font-weight:600;margin-top:3px;font-size:12.5px}
+  .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:14px 0 5px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{background:var(--chip);border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:11.5px;color:var(--muted);cursor:pointer}
+  .chip:hover{border-color:var(--brand);color:var(--brand)}
+  .timeline{border-left:2px solid var(--line);margin:6px 0 0 6px;padding-left:15px}
+  .tl{position:relative;padding:6px 0;font-size:12.5px} .tl::before{content:"";position:absolute;left:-21px;top:10px;
+    width:8px;height:8px;border-radius:50%;background:var(--brand)} .tl.d::before{background:var(--dim)}
+  .tl .dt{font-size:11px;color:var(--dim)}
+
+  /* ---------- forms / submit ---------- */
+  .form{max-width:640px} .field{margin-bottom:15px}
+  .field label{display:block;font-weight:600;margin-bottom:6px;font-size:13px}
+  .field .h{font-size:11.5px;color:var(--dim);margin-bottom:7px}
+  .field input,.field textarea,.field select{width:100%;background:var(--panel2);border:1px solid var(--line);
+    border-radius:9px;padding:10px 12px;color:var(--txt);font-family:inherit;font-size:13.5px}
+  .field textarea{min-height:84px;resize:vertical}
+  .btn{border:0;border-radius:8px;padding:9px 15px;font-weight:600;font-size:12.5px;cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;gap:7px}
+  .btn-primary{background:var(--brand);color:#fff} .btn-primary:hover{background:#6f9bff}
+  .btn-ghost{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+  .btn-ok{background:rgba(67,181,129,.16);color:var(--ok)} .btn-bad{background:rgba(240,97,109,.14);color:var(--expired)}
+  /* people picker */
+  .picker{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 9px;display:flex;
+    flex-wrap:wrap;gap:6px;align-items:center}
+  .person{display:inline-flex;align-items:center;gap:7px;background:var(--panel3);border:1px solid var(--line);
+    border-radius:20px;padding:3px 9px 3px 3px;font-size:12px}
+  .avatar{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--brand2),var(--brand));
+    display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+  .person .x{color:var(--dim);cursor:pointer;font-size:14px}
+  .picker input{flex:1;min-width:150px;background:transparent;border:0;outline:none;color:var(--txt);font:inherit;font-size:13px}
+  .pp-suggest{background:var(--panel);border:1px solid var(--line);border-radius:9px;margin-top:5px;overflow:hidden;display:none}
+  .pp-suggest.show{display:block}
+  .pp-row{display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;font-size:13px}
+  .pp-row:hover{background:var(--panel2)} .pp-row .em{color:var(--dim);font-size:11.5px;margin-left:auto}
+
+  .ai-agent{display:flex;gap:14px;background:linear-gradient(135deg,#1b1f42,#231a3a);border:1px solid #3a3570;
+    border-radius:var(--radius);padding:15px 17px;margin:4px 0 20px}
+  .ai-badge{flex:0 0 auto;width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand2));
+    display:grid;place-items:center;font-size:12px;font-weight:700}
+  .ai-actions{display:flex;gap:9px;margin-top:11px;flex-wrap:wrap}
+  .ai-out{display:none;margin-top:13px;background:#12131c;border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .ai-cand{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    padding:8px 11px;margin-bottom:7px;font-size:13px}
+
+  /* flow track (my ideas within explorer detail) */
+  .flowbar{display:flex;align-items:center;flex-wrap:wrap;gap:0;margin:8px 0}
+  .step{display:flex;align-items:center;gap:7px} .step .c{width:22px;height:22px;border-radius:50%;display:grid;
+    place-items:center;font-size:11px;font-weight:700;border:2px solid var(--line);color:var(--muted);background:var(--panel2)}
+  .step.done .c{background:var(--ok);border-color:var(--ok);color:#04180d} .step.active .c{background:var(--brand);
+    border-color:var(--brand);color:#fff} .step .t{font-size:11px;color:var(--muted)} .step.active .t{color:#fff;font-weight:600}
+  .step .ln{width:26px;height:2px;background:var(--line);margin:0 3px} .step.done .ln{background:var(--ok)}
+
+  /* funnel / kanban / sessions */
+  .funnel{display:flex;gap:10px} .stage{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:11px;
+    padding:13px;text-align:center} .stage .n{font-size:21px;font-weight:750} .stage .l{font-size:11px;color:var(--muted);margin-top:3px}
+  .session{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:13px 15px;margin-bottom:9px;box-shadow:var(--shadow)}
+  .session .q{width:54px;height:54px;border-radius:11px;background:linear-gradient(135deg,var(--brand2),var(--brand));
+    display:grid;place-items:center;font-weight:750;flex:0 0 54px;text-align:center;font-size:12.5px;line-height:1.1}
+  .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-top:6px}
+  .col{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px}
+  .col h4{margin:0 0 9px;font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between}
+  .kt{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:7px;font-size:12px}
+  .kt .who{color:var(--dim);font-size:10.5px;margin-top:4px}
+
+  .review-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px 17px;margin-bottom:13px;box-shadow:var(--shadow)}
+  .rc-head{display:flex;align-items:center;gap:11px;margin-bottom:6px;flex-wrap:wrap} .rc-head .t{font-weight:700;font-size:14.5px}
+  .rc-meta{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;margin:8px 0} .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  table{width:100%;border-collapse:collapse;font-size:13px} th{text-align:left;color:var(--dim);font-weight:600;font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.07em;padding:9px 10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid #212530} .docket{font-family:ui-monospace,Consolas,monospace;color:var(--brand);font-weight:600}
+  .drive-file{display:flex;align-items:center;gap:11px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    padding:10px 13px;margin-bottom:8px;font-size:13px} .drive-file .who{margin-left:auto;color:var(--dim);font-size:11.5px}
+  .vault-tag{display:inline-flex;align-items:center;gap:6px;background:#3a1e22;color:#f08a92;border:1px solid #5a2b30;
+    padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+  .notice{display:none;background:rgba(67,181,129,.12);border:1px solid #1c5236;color:#7fe0ab;padding:11px 14px;border-radius:10px;margin-bottom:14px}
+  footer{color:var(--dim);font-size:11.5px;padding:22px 26px;border-top:1px solid var(--line);max-width:1200px;margin:20px auto 0}
+  @media (max-width:920px){ .kpis{grid-template-columns:1fr 1fr} .grid2,.grid15,.explorer{grid-template-columns:1fr} .detail{position:static} }
+
+  #app{display:none}
+  .btn-signout{padding:6px 11px;font-size:12px}
+  #whoami{font-size:12.5px}
+  .overlay{min-height:70vh;display:grid;place-items:center;padding:40px 20px}
+  .authcard{max-width:440px;text-align:center;background:var(--panel);border:1px solid var(--line);
+    border-radius:16px;padding:34px 30px;box-shadow:var(--shadow)}
+  .authcard .mk{width:52px;height:52px;border-radius:13px;margin:0 auto 16px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));display:grid;place-items:center;font-size:24px}
+  .authcard h1{font-size:20px;margin:0 0 8px} .authcard p{color:var(--muted);font-size:13.5px;line-height:1.6;margin:0 0 20px}
+  .authcard .btn-primary{padding:11px 22px;font-size:14px}
+  .err-title{color:var(--expired);font-size:17px;font-weight:700;margin-bottom:8px}
+  .err-detail{color:var(--muted);font-size:12.5px;line-height:1.6;font-family:ui-monospace,Consolas,monospace;
+    background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:left;white-space:pre-wrap;word-break:break-word}
+  #diagPanel{position:fixed;left:0;right:0;bottom:0;z-index:80;background:#0c0d10;border-top:1px solid var(--line)}
+  .diag-bar{display:flex;align-items:center;gap:10px;padding:7px 16px;cursor:pointer;font-size:11.5px;color:var(--muted)}
+  .diag-bar .lbl2{font-weight:600;color:var(--txt)} .diag-bar .spacer{flex:1}
+  #diagPanel #diagBody{max-height:0;overflow:hidden;transition:max-height .2s ease;padding:0 16px}
+  #diagPanel.open #diagBody{max-height:40vh;overflow:auto;padding:6px 16px 14px}
+  .diag-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px;border-bottom:1px solid #191b20}
+  .diag-dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+  .diag-dot.ok{background:var(--ok)} .diag-dot.bad{background:var(--expired)}
+  .diag-step{min-width:210px;color:var(--txt)} .diag-detail{color:var(--dim);font-family:ui-monospace,Consolas,monospace;word-break:break-word}
+</style>
+</head>
 <body>
-  <div class="box">
-    <div class="mark">◈</div>
-    <h1>OXMIQ Patent Portfolio Hub</h1>
-    <p>Internal dashboard — sign-in with your OXMIQ Microsoft 365 account is being wired up. Access is enforced by M365; there is no company data on this page.</p>
+<div id="rolewrap" data-role="employee" class="hide-anno">
+  <div id="signin" class="overlay" style="display:none">
+    <div class="authcard"><div class="mk">◈</div>
+      <h1>OXMIQ Patent Portfolio Hub</h1>
+      <p>Sign in with your OXMIQ Microsoft 365 account. Everything you see is enforced by M365 — this page holds no data.</p>
+      <button id="btnSignin" class="btn btn-primary">Sign in with Microsoft</button></div>
   </div>
+  <div id="errbox" class="overlay" style="display:none">
+    <div class="authcard" style="text-align:left"><div class="err-title">Something went wrong</div>
+      <div class="err-detail"></div>
+      <div style="margin-top:16px;text-align:center"><button class="btn btn-ghost" onclick="location.reload()">Retry</button></div></div>
+  </div>
+  <div id="app">
+
+<header>
+  <div class="topbar">
+    <div class="logo"><span class="mark">◈</span> Patent Portfolio Hub</div>
+    <span class="badge-sb" style="color:#54d391;border-color:#1c5236;background:#0f2a1c">● LIVE · your portfolio</span>
+    <div class="spacer"></div><span id="whoami" class="dim"></span><button id="btnSignout" class="btn btn-ghost btn-signout">Sign out</button>
+    <label class="anno-toggle"><input type="checkbox" id="annoChk" onchange="document.getElementById('rolewrap').classList.toggle('hide-anno',!this.checked)"> Storyboard notes</label>
+    <div class="role-switch" id="roleSwitch">
+      <button data-role="employee" class="active" onclick="setRole('employee')">👤 Employee</button>
+      <button data-role="committee" onclick="setRole('committee')">🛡️ Committee</button>
+      <button data-role="exec" onclick="setRole('exec')">🔐 Executives</button>
+      <button data-role="counsel" onclick="setRole('counsel')">⚖️ Counsel</button>
+    </div>
+  </div>
+  <nav class="tabs" id="nav">
+    <a data-page="dash" class="active" onclick="go('dash')">🏠 Dashboard</a>
+    <a data-page="explorer" onclick="go('explorer')">📊 Portfolio Explorer</a>
+    <a data-page="submit" onclick="go('submit')">💡 Submit an Idea</a>
+    <a data-page="harvest" onclick="go('harvest')">🌾 Harvesting</a>
+    <a data-page="review" class="tier tier-committee" onclick="go('review')">🗳️ Review <span class="pill-count">1</span></a>
+    <a data-page="health" class="tier tier-committee" onclick="go('health')">🩺 Portfolio Health</a>
+    <a data-page="engage" class="tier tier-exec" onclick="go('engage')">🤝 Counsel Engagement</a>
+    <a data-page="vault" class="tier tier-exec" onclick="go('vault')">🔐 Legal &amp; Finance</a>
+    <a data-page="drive" class="tier tier-counsel" onclick="go('drive')">📂 Shared Drive</a>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ DASHBOARD ============ -->
+  <section class="page show" id="page-dash">
+    <h1>Patent Portfolio Dashboard</h1>
+    <div class="sub">One glance at portfolio health. Everything here respects your access — inherited from M365, nothing to log into that we built.</div>
+    <div class="anno"><span class="tag">SHAPE</span><div>Cleaner landing than v2 — <b>no tiles linking to sections</b> (the top tabs do that). Charts &amp; status live here on the Dashboard, not in Explorer. <b>Health detail is tiered:</b> everyone sees the portfolio pulse &amp; tech mix; <b>office actions, pending-examination, expired and spend are committee/exec only</b> (try the role switcher).</div></div>
+
+    <div class="kpis">
+      <div class="kpi" style="--accent:var(--brand)"><div class="n tabnum" id="kpiTotal">24</div><div class="l">Total filings</div><div class="d up">▲ 8 in the last year</div></div>
+      <div class="kpi tier-committee" style="--accent:var(--oa)"><div class="n tabnum" id="kpiOA">5</div><div class="l">Office actions open 🛡️</div><div class="d">needs attorney reply</div></div>
+      <div class="kpi tier-committee" style="--accent:var(--pending)"><div class="n tabnum" id="kpiPending">17</div><div class="l">Pending examination 🛡️</div><div class="d">utility + provisional</div></div>
+      <div class="kpi tier-committee" style="--accent:var(--expired)"><div class="n tabnum" id="kpiExpired">2</div><div class="l">Expired 🛡️</div><div class="d">root provisionals lapsed</div></div>
+      <div class="kpi tier-exec" style="--accent:var(--brand2)"><div class="n">$182k</div><div class="l">Filing spend YTD 🔐</div><div class="d">executives</div></div>
+    </div>
+
+    <div class="grid15" style="margin-top:16px">
+      <div class="card">
+        <h3>By technology area <span class="hint">all staff</span></h3>
+        <div id="areaBars"></div>
+      </div>
+      <div class="card tier-committee">
+        <h3>Status distribution <span class="hint">🛡️ committee &amp; exec</span></h3>
+        <div class="donutwrap"><div id="donut"></div><div class="legend" id="statusLegend"></div></div>
+      </div>
+      <div class="card" id="pubStatusCard">
+        <h3>Portfolio at a glance <span class="hint">all staff</span></h3>
+        <div class="dim" style="font-size:12.5px;margin-bottom:8px">What the company sees: filings by area and recent activity. Detailed prosecution status stays with the committee.</div>
+        <div id="recent"></div>
+      </div>
+    </div>
+
+    <div class="grid2 tier-committee" style="margin-top:14px">
+      <div class="card"><h3>🔔 What needs attention</h3>
+        <div class="ticket">Office action reply due — <b>P0006</b> <span class="who">counsel · running</span></div>
+        <div class="ticket">4 more office actions open across P0003/07/08/09 <span class="who">committee + counsel</span></div>
+        <div class="ticket">1 idea awaiting committee vote <span class="who">Review queue</span></div>
+      </div>
+      <div class="card"><h3>🕑 Recent portfolio activity</h3>
+        <div class="ticket">P0023P — <b>Multi-die IC complexes</b> filed provisional <span class="who">Feb 2026</span></div>
+        <div class="ticket">P0017 — utility of P0017P filed <span class="who">Feb 2026</span></div>
+        <div class="ticket">P0001P / P0002P provisionals expired <span class="who">converted via children</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ EXPLORER (incl My Ideas via "Only mine") ============ -->
+  <section class="page" id="page-explorer">
+    <h1>Portfolio Explorer</h1>
+    <div class="sub">The company-wide internal <b>Google Patents</b> — search every filing, open a full detail view. Tick <b>Only mine</b> to fold in your own ideas at any stage (that's your "My Ideas").</div>
+    <div class="anno"><span class="tag">VISIBILITY</span><div><b>Filed &amp; published dockets are company-wide.</b> Your own in-progress ideas appear only to you via <b>Only mine</b> — access is enforced by SharePoint per-user, so no one sees another person's unpublished work. This replaces a separate "My Ideas" tab: it's the same browse surface, filtered.</div></div>
+    <div class="anno"><span class="tag">GUARDRAILS</span><div>No filing-count leaderboards, no "top inventor" rankings. Inventorship is determined by counsel from the claims — believe you contributed? Raise it with the committee.</div></div>
+
+    <div class="bigsearch"><span style="font-size:17px">🔎</span>
+      <input id="q" placeholder="Search by title, docket, inventor, application #, or classification…" oninput="renderGallery()"></div>
+    <div class="facets" id="facets">
+      <span class="facet on" data-f="all" onclick="setFacet('all',this)">All</span>
+      <span class="facet" data-f="Office action" onclick="setFacet('Office action',this)">Office action</span>
+      <span class="facet" data-f="Pending" onclick="setFacet('Pending',this)">Pending</span>
+      <span class="facet" data-f="Expired" onclick="setFacet('Expired',this)">Expired</span>
+      <span class="facet" data-f="Compute / Cores" onclick="setFacet('Compute / Cores',this)">Compute / Cores</span>
+      <span class="facet" data-f="Software / Runtime" onclick="setFacet('Software / Runtime',this)">Software / Runtime</span>
+      <span class="facet" data-f="Packaging" onclick="setFacet('Packaging',this)">Packaging</span>
+      <label class="mine-toggle" id="mineToggle"><input type="checkbox" id="mineChk" onchange="renderGallery()"> Only mine</label>
+    </div>
+
+    <div class="explorer">
+      <div class="listcard">
+        <div class="resount rescount" id="resCount"></div>
+        <div class="gallery" id="gallery"></div>
+      </div>
+      <div class="detail" id="detail"></div>
+    </div>
+  </section>
+
+  <!-- ============ SUBMIT ============ -->
+  <section class="page" id="page-submit">
+    <h1>Submit an Idea</h1>
+    <div class="sub">Got something worth protecting? Float it. Low-friction and encouraging — the goal is to capture ideas, not gate them. You keep secured visibility the whole way (see it under <b>Only mine</b> in Explorer).</div>
+    <div class="notice" id="submitOk">✓ Thanks — logged privately as <b>IDEA-0007</b>. We've emailed you and your co-inventors a link to the shared folder. Follow it in Explorer → Only mine.</div>
+
+    <div class="ai-agent">
+      <div class="ai-badge">✨ AI</div>
+      <div style="flex:1">
+        <b>Not sure if it's patentable? Let the OXMIQ Patent Agent help.</b>
+        <div class="dim" style="margin-top:4px">A Claude agent scans your Confluence specs, design docs and code to surface likely-patentable ideas, checks them against existing filings, and drafts a first-pass application you can edit and submit.</div>
+        <div class="ai-actions">
+          <button class="btn btn-primary" onclick="document.getElementById('aiOut').style.display='block'">Scan my work for patentable ideas</button>
+          <button class="btn btn-ghost">Draft from a doc</button>
+        </div>
+        <div class="ai-out" id="aiOut">
+          <div class="dim" style="font-size:11.5px;margin-bottom:9px">✨ Found 3 candidate ideas in your recent work · ranked vs. existing portfolio</div>
+          <div class="ai-cand"><b>Speculative work-item prefetch across cores</b><span class="badge b-granted" style="margin-left:auto">Strong candidate</span></div>
+          <div class="ai-cand"><b>Adaptive interposer thermal routing</b><span class="badge b-prov" style="margin-left:auto">Adjacent to P0021P</span></div>
+          <div class="ai-cand"><b>Cache-coherence hint compression</b><span class="badge b-oa" style="margin-left:auto">Check overlap w/ P0011</span></div>
+          <div class="anno" style="margin-top:10px"><span class="tag">NO GRADE</span><div>You never see a score or pass/fail — the AI encourages and helps, never judges or gates. Detailed signals go to the committee, not shown back to you. Submit as-is or refine.</div></div>
+          <div class="ai-actions"><button class="btn btn-primary" onclick="document.querySelector('#page-submit .form input').focus()">Pre-fill my idea ↓</button><button class="btn btn-ghost">Refine with AI</button></div>
+        </div>
+      </div>
+    </div>
+
+    <form class="form" onsubmit="event.preventDefault();document.getElementById('submitOk').style.display='block';window.scrollTo(0,0)">
+      <div class="field"><label>Invention title</label><input placeholder="e.g. Adaptive scheduling across heterogeneous compute" required></div>
+      <div class="field"><label>Problem it solves</label><div class="h">What's the pain today, and why does it matter?</div><textarea placeholder="Describe the problem…"></textarea></div>
+      <div class="field"><label>The novel idea</label><div class="h">What's genuinely new vs. prior art you're aware of?</div><textarea placeholder="Describe the invention…"></textarea></div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <div class="field" style="flex:1;min-width:200px"><label>Technology area</label>
+          <select><option>Compute / Cores</option><option>Software / Runtime</option><option>Packaging</option><option>Memory / Fabric</option><option>Datacenter / System</option></select></div>
+        <div class="field" style="flex:1;min-width:220px"><label>Inventors <span class="dim" style="font-weight:400">· you're lead by default</span></label>
+          <div class="h">Add fellow inventors — resolved from the M365 directory.</div>
+          <div class="picker" id="picker" onclick="document.getElementById('ppInput').focus()">
+            <span class="person"><span class="avatar">AA</span> Anurag Agrawal <span class="x" title="lead">★</span></span>
+            <input id="ppInput" placeholder="Add by name or email…" oninput="ppSuggest(this.value)" autocomplete="off">
+          </div>
+          <div class="pp-suggest" id="ppSuggest"></div>
+        </div>
+      </div>
+      <div class="field"><label>Supporting material</label><div class="h">Confluence links, diagrams, specs, sketches.</div><input placeholder="Paste links or drop files…"></div>
+      <div class="anno"><span class="tag">M365</span><div>The inventor picker resolves names against the OXMIQ directory (Microsoft Graph people search). Everyone you add gets the shared docket folder &amp; email updates — no per-user access code on our side.</div></div>
+      <button class="btn btn-primary" type="submit">Share my idea</button>
+    </form>
+  </section>
+
+  <!-- ============ HARVESTING (v2 style) ============ -->
+  <section class="page" id="page-harvest">
+    <h1>Harvesting Sessions</h1>
+    <div class="sub">A quarterly session captures a stream of <b>potential</b> ideas — not formal submissions. Each gets a lead so counsel can reach out; the committee graduates the ripe ones to a formal Submit.</div>
+    <div class="anno"><span class="tag">SHAPE</span><div>Top of the funnel, kept lightweight — a title and a lead, nothing confidential-application-level until it's formally submitted. Sessions (below) + the idea stream board.</div></div>
+    <div class="anno"><span class="tag">TBD</span><div><b>How a potential's status is captured/updated isn't settled yet.</b> Options on the table: committee drags cards across the board; or a lightweight status file per potential; or the harvest spreadsheet the lawyers already keep. We'll decide with you before wiring it.</div></div>
+
+    <h2>Sessions</h2>
+    <div class="session"><div class="q">2026<br>Q3</div><div style="flex:1"><b>Harvest — Q3 2026</b><div class="muted">Sep 18, 2026 · Focus: Memory fabric &amp; 3D packaging · Facilitator: You</div></div><span class="badge b-prov"><span class="dot" style="background:var(--prov)"></span>Scheduled</span></div>
+    <div class="session"><div class="q">2026<br>Q2</div><div style="flex:1"><b>Harvest — Q2 2026</b><div class="muted">Jun 12, 2026 · 11 potentials captured · 4 graduated to submit · 2 parked</div></div><span class="badge b-granted"><span class="dot" style="background:var(--ok)"></span>Complete</span></div>
+    <div class="session"><div class="q">2026<br>Q1</div><div style="flex:1"><b>Harvest — Q1 2026</b><div class="muted">Mar 07, 2026 · 8 potentials · 3 ripened &amp; filed · 3 parked</div></div><span class="badge b-granted"><span class="dot" style="background:var(--ok)"></span>Complete</span></div>
+
+    <h2>Idea stream <span class="dim" style="font-size:12px;font-weight:400">· potentials, with leads</span></h2>
+    <div class="kanban" id="kanban"></div>
+  </section>
+
+  <!-- ============ REVIEW (committee) ============ -->
+  <section class="page" id="page-review">
+    <h1>Application Review <span class="vault-tag" style="background:#2a2350;color:#b79cff;border-color:#3a2f5e">🛡️ Committee</span></h1>
+    <div class="sub">Vet, filter, update, and move applications through — every decision, score and stage-move logged for an audit trail. No email-only approvals.</div>
+    <div class="anno"><span class="tag">FLOW</span><div>One track: <b>Submitted → Committee vet → Approve to engage counsel → (Execs authorize spend) → Drafting → Filed</b>. The committee approves <i>engaging</i> counsel; executives authorize the <i>spend</i>.</div></div>
+    <div class="review-card">
+      <div class="rc-head"><span class="badge b-prov"><span class="dot" style="background:var(--prov)"></span>In committee vet</span><span class="t">Adaptive cache partitioning for shared cores</span></div>
+      <div class="flowbar">
+        <span class="step done"><span class="c">✓</span><span class="t">Submitted</span></span><span class="ln"></span>
+        <span class="step active"><span class="c">2</span><span class="t">Committee vet</span></span><span class="ln"></span>
+        <span class="step"><span class="c">3</span><span class="t">Engage counsel</span></span><span class="ln"></span>
+        <span class="step"><span class="c">4</span><span class="t">Drafting</span></span><span class="ln"></span>
+        <span class="step"><span class="c">5</span><span class="t">Filed</span></span></div>
+      <div class="rc-meta"><span>👤 L. Park</span><span>📂 Compute / Cores</span><span>🗳️ 3 approve · 1 hold</span><span>Novelty 4/5 · fit 5/5</span></div>
+      <div class="actions"><button class="btn btn-ok" onclick="act(this,'Approved → sent to Executives for spend authorization')">Approve to engage counsel</button>
+        <button class="btn btn-ghost" onclick="act(this,'Sent back for detail')">Request more info</button>
+        <button class="btn btn-bad" onclick="act(this,'Declined — logged with rationale')">Decline</button></div>
+    </div>
+    <div class="anno"><span class="tag">NOTE</span><div>Committee also sees full prosecution status here and in <b>Portfolio Health</b> — the office-action / pending / expired detail that's hidden from the all-staff dashboard.</div></div>
+  </section>
+
+  <!-- ============ HEALTH (committee) ============ -->
+  <section class="page" id="page-health">
+    <h1>Portfolio Health <span class="vault-tag" style="background:#2a2350;color:#b79cff;border-color:#3a2f5e">🛡️ Committee</span></h1>
+    <div class="sub">The operational cockpit: what's filed, what's in motion, what needs a human, and what's on the clock. This is where the detailed status the dashboard hides for employees lives.</div>
+    <h2>Pipeline</h2>
+    <div class="funnel">
+      <div class="stage"><div class="n">6</div><div class="l">Ideas / harvest</div></div>
+      <div class="stage"><div class="n">1</div><div class="l">In committee</div></div>
+      <div class="stage"><div class="n">3</div><div class="l">Drafting</div></div>
+      <div class="stage"><div class="n">10</div><div class="l">Provisional live</div></div>
+      <div class="stage"><div class="n">14</div><div class="l">Utility / exam</div></div>
+    </div>
+    <div class="grid2" style="margin-top:20px">
+      <div class="card"><h3>⚠️ USPTO office actions — needs reply</h3>
+        <table><thead><tr><th>Docket</th><th>Title</th><th>App #</th><th>Owner</th></tr></thead><tbody id="oaTable"></tbody></table>
+      </div>
+      <div class="card"><h3>⏳ Provisional conversion clock</h3>
+        <div class="barrow"><span class="k">P0013P → utility</span><div class="bar"><i style="width:20%;background:var(--expired)"></i></div><span class="v">soon</span></div>
+        <div class="barrow"><span class="k">P0017P → P0017 ✓</span><div class="bar"><i style="width:100%;background:var(--ok)"></i></div><span class="v">done</span></div>
+        <div class="barrow"><span class="k">P0018P → utility</span><div class="bar"><i style="width:60%;background:var(--oa)"></i></div><span class="v">~5mo</span></div>
+        <div class="barrow"><span class="k">P0022P → utility</span><div class="bar"><i style="width:82%;background:var(--ok)"></i></div><span class="v">~10mo</span></div>
+        <h3 style="margin-top:18px">📮 Reach-outs</h3>
+        <div class="ticket">Counsel requested figures — P0006 office action · <span class="dim">2 days ago</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ENGAGE (exec) ============ -->
+  <section class="page" id="page-engage">
+    <h1>Counsel Engagement <span class="vault-tag">🔐 Executives</span></h1>
+    <div class="sub">The gate between an internally-approved application and money leaving the building. Committee approves the idea; executives authorize engaging and paying outside counsel.</div>
+    <div class="review-card">
+      <div class="rc-head"><span class="badge b-oa"><span class="dot" style="background:var(--oa)"></span>Awaiting authorization</span><span class="t">Adaptive cache partitioning — engage Adeli LLP</span></div>
+      <div class="rc-meta"><span>👤 L. Park</span><span>✅ Committee approved 1 day ago</span><span>💵 Est. $3,500 (provisional)</span></div>
+      <div class="actions"><button class="btn btn-ok" onclick="act(this,'Authorized · counsel + authors granted drive access · moved to Drafting')">Authorize &amp; engage</button>
+        <button class="btn btn-ghost" onclick="act(this,'Held')">Hold</button><button class="btn btn-bad" onclick="act(this,'Declined spend')">Decline spend</button></div>
+    </div>
+    <div class="anno"><span class="tag">FLOW</span><div>On sign-off, the docket folder is shared with counsel's <b>OXMIQ-assigned email only</b> (scoped, revocable), and the docket moves to Drafting.</div></div>
+  </section>
+
+  <!-- ============ VAULT (exec) ============ -->
+  <section class="page" id="page-vault">
+    <h1>Legal &amp; Finance <span class="vault-tag">🔐 Executives only</span></h1>
+    <div class="sub">The most restricted tier — counsel engagement contracts, fee schedules, invoices, receipts, payouts. You + CFO; counsel sees only what concerns them.</div>
+    <div class="kpis">
+      <div class="kpi" style="--accent:var(--brand2)"><div class="n">$182k</div><div class="l">Filing spend YTD</div></div>
+      <div class="kpi" style="--accent:var(--oa)"><div class="n">$21k</div><div class="l">Invoices awaiting approval</div></div>
+      <div class="kpi" style="--accent:var(--pending)"><div class="n">$44k</div><div class="l">Est. fees next 90 days</div></div>
+      <div class="kpi" style="--accent:var(--ok)"><div class="n">1</div><div class="l">Active counsel agreement</div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h3>🧾 Invoices &amp; receipts <span class="hint">from /Legal-Finance</span></h3>
+      <table><thead><tr><th>Invoice</th><th>Matter</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+        <tr><td class="docket">INV-2041</td><td>P0020P–P0023P provisionals</td><td>$18,400</td><td><span class="badge b-oa"><span class="dot" style="background:var(--oa)"></span>Pending approval</span></td></tr>
+        <tr><td class="docket">INV-2038</td><td>P0006 office action reply</td><td>$6,200</td><td><span class="badge b-granted"><span class="dot" style="background:var(--ok)"></span>Paid</span></td></tr>
+        <tr><td class="docket">INV-2033</td><td>Q1 harvest → 3 filings</td><td>$12,900</td><td><span class="badge b-granted"><span class="dot" style="background:var(--ok)"></span>Paid</span></td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <!-- ============ DRIVE (counsel) ============ -->
+  <section class="page" id="page-drive">
+    <h1>Shared Drive <span class="vault-tag" style="background:#123524;color:#54d391;border-color:#1c5236">📂 Scoped access</span></h1>
+    <div class="sub">Where authors and engaged counsel exchange material — one folder per docket, visible only to that application's members. Counsel signs in and sees <b>only their engaged dockets</b>.</div>
+    <div class="anno"><span class="tag">ACCESS</span><div>A SharePoint folder shared with counsel via their <b>OXMIQ-assigned email</b> — scoped per docket, revocable, never site membership. Granted automatically when counsel is engaged. <b>The committee &amp; chair see every docket folder here</b> (they have edit on /Applications), so anyone on the committee can step in; external counsel sees only the dockets they're engaged on.</div></div>
+    <div class="card"><h3>📁 P0006 · Recursive command bundles <span class="badge b-oa" style="margin-left:auto"><span class="dot" style="background:var(--oa)"></span>Office action</span></h3>
+      <div class="drive-file"><span>📝</span><div><b>Office_Action_2026.pdf</b><div class="dim">USPTO</div></div><span class="who">Adeli LLP</span></div>
+      <div class="drive-file"><span>📐</span><div><b>Response_draft_v1.docx</b><div class="dim">for author review</div></div><span class="who">Adeli LLP</span></div>
+      <div class="drive-file"><span>🧾</span><div><b>As-filed spec + figures</b><div class="dim">03_Filed</div></div><span class="who">on file</span></div>
+      <div class="actions"><button class="btn btn-primary">Upload material</button><button class="btn btn-ghost">Request signature</button></div>
+    </div>
+  </section>
+</main>
+
+<footer>Storyboard v3 · non-functional shape over a real 24-docket snapshot · role switcher &amp; tabs are interactive; forms &amp; buttons illustrative · access shown here is enforced in production by M365 permissions, not by this page.</footer>
+
+
+  </div>
+  <div id="diagPanel">
+    <div class="diag-bar" id="diagToggle"><span class="lbl2">Diagnostics</span><span class="dim">auth + Graph calls (click to expand)</span><span class="spacer"></span><span class="dim">▲</span></div>
+    <div id="diagBody"></div>
+  </div>
+</div>
+<script src="./msal-browser.min.js"></script>
+<script src="./config.js"></script>
+<script src="./app.js"></script>
 </body></html>
