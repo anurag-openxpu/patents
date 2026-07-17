@@ -1,14 +1,22 @@
 <!-- Copyright (c) 2026 OXMIQ -->
 # OXMIQ Patent Portfolio Hub — setup & access
 
-Live page: **https://anurag-openxpu.github.io/patents/**
-(internal-audience tool; add `noindex` is already set. Reach it from office / VPN.)
+Live page: **https://anurag-openxpu.github.io/patents/** (`noindex` set)
 
-This is a **static** page (HTML/JS on GitHub Pages). It holds **no patent data**.
-At sign-in it calls Microsoft Graph **as the signed-in user** and reads two lists
-on the `OXMIQ-IPP` SharePoint site. What each person sees is whatever M365 already
-lets them see — we enforce nothing in code. Writes are **not** done here (they stay
-in Power Automate); this page is **read-only**.
+**Two layers, only one is gated — be clear on this:**
+- **The page shell** (HTML/JS) is hosted on GitHub Pages, a *public* host. Anyone
+  can load the URL from anywhere — no VPN, no office network, no account. What they
+  load is a sign-in screen. GitHub Pages cannot be restricted to internal-only.
+- **The data** is fully gated: nothing renders until M365 sign-in, and Graph then
+  returns only what *that account* is allowed to see. No VPN needed — M365 is cloud,
+  gated by identity + device compliance, not network. VPN here is only for on-prem
+  compute. To hide the shell itself too, IT can put Conditional Access on the app
+  (sign-in only from trusted devices/locations); the page doesn't change.
+
+This is a **static** page. It holds **no patent data**. At sign-in it calls Microsoft
+Graph **as the signed-in user** and reads two lists on the `OXMIQ-IPP` SharePoint site.
+What each person sees is whatever M365 already lets them see — we enforce nothing in
+code. Writes are **not** done here (they stay in Power Automate); this page is **read-only**.
 
 - Tenant: `0184cb4b-6696-4b38-8323-9f5cdeb5babc`
 - App (client) ID: `fe1ffd79-a7e4-4029-acda-460b7fe38709`
@@ -59,7 +67,7 @@ Content-Type: application/json
 ---
 
 ## For the owner — test it
-1. Open **https://anurag-openxpu.github.io/patents/** (office or VPN).
+1. Open **https://anurag-openxpu.github.io/patents/** (any network — no VPN needed).
 2. Click **Sign in with Microsoft**, complete sign-in.
 3. Expect: the four KPIs fill in, the Explorer gallery shows the 24 dockets, the
    role switcher and tabs work.
