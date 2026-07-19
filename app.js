@@ -213,9 +213,18 @@ const esc = escp;
 const pill = s => { const m = STATUS[s] || STATUS.Pending; return `<span class="badge ${m.b}"><span class="dot" style="background:${m.c}"></span>${esc(s || "—")}</span>`; };
 const inv1 = s => (s || "").replace(" (first named)", "");
 
-/* access gate: committee & exec see everything; others see only published filings */
+/* access gate, per role:
+   - committee / exec -> every filing
+   - counsel          -> the filings assigned to their firm (AssignedCounsel === CFG.counselFirm),
+                         regardless of the publish flag — a scoped navigation/status view
+   - employee (default)-> only PublishToPortfolio filings (the public portfolio) */
 function canSeeAll() { return role === "committee" || role === "exec"; }
-function visibleFilings() { return canSeeAll() ? FILINGS : FILINGS.filter(f => f.pub); }
+function visibleFilter(f) {
+  if (canSeeAll()) return true;
+  if (role === "counsel") return !!f.counsel && f.counsel === CFG.counselFirm;
+  return f.pub;
+}
+function visibleFilings() { return FILINGS.filter(visibleFilter); }
 function isMine(r) {
   const nm = (ME && ME.displayName || "").trim().toLowerCase();
   if (!nm) return false;
@@ -283,11 +292,10 @@ function matchSearch(f, q) {
 }
 /* families with only the currently-visible filings in each */
 function familiesForView() {
-  const all = canSeeAll();
   const q = ((document.getElementById("q") || {}).value || "").toLowerCase();
   const mineOn = !!(document.getElementById("mineChk") && document.getElementById("mineChk").checked);
   return FAMILIES.map(fm => {
-    let kids = fm.filings.filter(f => all || f.pub);
+    let kids = fm.filings.filter(visibleFilter);
     if (mineOn) kids = kids.filter(isMine);
     kids = kids.filter(f => matchSearch(f, q) && matchFacet(f));
     return { disc: fm.disc, kids };
@@ -314,22 +322,30 @@ function renderGallery() {
         <span class="fam-t">${esc(label)} <span class="fam-slug">${esc(slug)}</span></span>
         <span class="cnt">${fm.kids.length}</span></div>
       <div class="famchildren">${fm.kids.map(fcard).join("")}</div></div>`;
-  }).join("") || `<div class="rescount">${mineOn ? "No filings list you as an inventor." : canSeeAll() ? "No filings match." : "No published filings match. (In-review filings stay private to their members.)"}</div>`;
+  }).join("") || `<div class="rescount">${emptyGalleryMsg(mineOn)}</div>`;
 
-  const totalSrc = (canSeeAll() ? FILINGS : FILINGS.filter(f => f.pub)).length;
+  const totalSrc = visibleFilings().length;
+  const scope = role === "counsel" ? " · your dockets" : "";
   document.getElementById("resCount").textContent =
-    `${total} of ${totalSrc} filings · ${view.length} famil${view.length === 1 ? "y" : "ies"}${mineOn ? " · yours" : ""}${facet !== "all" ? " · " + facet : ""}`;
+    `${total} of ${totalSrc} filings${scope} · ${view.length} famil${view.length === 1 ? "y" : "ies"}${mineOn ? " · yours" : ""}${facet !== "all" ? " · " + facet : ""}`;
 
   const first = view.length ? view[0].kids[0].key : null;
   if (first) openPat(first);
   else document.getElementById("detail").innerHTML = '<div class="dim" style="padding:30px;text-align:center">Nothing selected</div>';
 }
 
+function emptyGalleryMsg(mineOn) {
+  if (mineOn) return "No filings list you as an inventor.";
+  if (role === "counsel") return "No dockets are currently assigned to your firm.";
+  if (canSeeAll()) return "No filings match.";
+  return "No published filings match. (In-review filings stay private to their members.)";
+}
+
 function openPat(key) {
   const p = BYKEY.get(key);
   if (!p) return;
-  // gate: don't reveal an unpublished filing's detail to non-committee roles
-  if (p.kind === "filing" && !canSeeAll() && !p.pub) return;
+  // gate: don't reveal a filing's detail the current role isn't scoped to
+  if (p.kind === "filing" && !visibleFilter(p)) return;
   document.querySelectorAll("#gallery .pcard").forEach(c => c.classList.toggle("sel", c.dataset.d === key));
   document.getElementById("detail").innerHTML = p.kind === "disclosure" ? detailDisclosure(p) : detailFiling(p);
 }
@@ -344,6 +360,7 @@ function detailFiling(p) {
   return `
     <div class="dk">OXMIQ.${esc(p.docket)} · ${esc(p.filingType || "")}</div>
     <h2>${esc(p.title)}</h2>${pill(p.status)}
+    ${folderBtn(p.folderUrl, "Open filing folder in SharePoint →")}
     <div class="abs">${esc(p.summary || "Summary pending (nightly agent).")}</div>
     <div class="metagrid">
       <div class="metabox"><div class="ml">Application #</div><div class="mv">${esc(p.appNo || "—")}</div></div>
@@ -360,15 +377,21 @@ function detailFiling(p) {
       <div class="tl d">${p.status === 'Expired' ? '<b>Provisional expired</b> (converted via children)' : 'Grant (target)'}<div class="dt">stealth until grant</div></div>
     </div>`;
 }
+/* prominent SharePoint jump — the real counsel<->inventor exchange lives in the folder */
+function folderBtn(url, label) {
+  if (!url) return "";
+  return `<div style="margin:12px 0"><a class="btn btn-primary" href="${esc(url)}" target="_blank" rel="noopener">📂 ${esc(label)}</a></div>`;
+}
 function detailDisclosure(p) {
   const fam = FAM_BY_SLUG.get(p.slug);
   const kids = fam ? fam.filings : [];
-  const vis = canSeeAll() ? kids : kids.filter(k => k.pub);
+  const vis = kids.filter(visibleFilter);
   const chips = vis.map(k => `<span class="chip" onclick="openPat('${esc(k.key)}')">📄 ${esc(k.docket)}</span>`);
   return `
     <div class="dk">DISCLOSURE · ${esc(p.slug)}</div>
     <h2>${esc(p.title)}</h2>
     <span class="badge b-prov"><span class="dot" style="background:var(--prov)"></span>Disclosed</span>
+    ${folderBtn(p.folderUrl, "Open disclosure folder in SharePoint →")}
     <div class="abs">${esc(p.summary || p.desc || "Disclosure family — the founding record its filings derive from.")}</div>
     <div class="metagrid">
       <div class="metabox"><div class="ml">Filings in family</div><div class="mv">${kids.length}</div></div>

@@ -28,6 +28,12 @@ window.IPP_CONFIG = {
   // Portfolio is a *view* of this List (Stage in {Filed, Granted, Published} & PublishToPortfolio).
   ledgerList: "Ledger",
 
+  // Counsel scope (PoC): the role-switcher's "Counsel" view shows the filings whose
+  // AssignedCounsel = this firm — regardless of the publish flag. One firm today
+  // ("Adeli LLP" on all 24 dockets). In the real deployment the signed-in counsel's
+  // identity maps to a firm; matching CFG.counselFirm is the stand-in for the demo.
+  counselFirm: "Adeli LLP",
+
   // Show the diagnostics panel (auth + each Graph call). Leave true until go-live.
   diagnostics: true,
 };
