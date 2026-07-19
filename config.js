@@ -24,8 +24,9 @@ window.IPP_CONFIG = {
   siteHostname: "netorgft13672293.sharepoint.com",
   sitePath: "sites/OXMIQ-IPP",
   siteId: "netorgft13672293.sharepoint.com,1ab4a0ea-cbab-49ff-b754-770fb900844f,91248c16-84b4-40e8-9218-269d28fb3adb",
-  portfolioList: "Portfolio",
-  ideasList: "Ideas",
+  // Single source of truth: the Ledger List (Portfolio + Ideas collapsed into it).
+  // Portfolio is a *view* of this List (Stage in {Filed, Granted, Published} & PublishToPortfolio).
+  ledgerList: "Ledger",
 
   // Show the diagnostics panel (auth + each Graph call). Leave true until go-live.
   diagnostics: true,

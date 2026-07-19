@@ -127,6 +127,17 @@
   .pcard .body{flex:1;min-width:0}
   .pcard .ttl{font-size:13px;font-weight:500;line-height:1.35}
   .pcard .meta{display:flex;gap:9px;flex-wrap:wrap;margin-top:5px;color:var(--dim);font-size:11px;align-items:center}
+  /* disclosure-family groups within the gallery */
+  .famgroup{border-bottom:1px solid #212530}
+  .famhead{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;background:var(--panel2);
+    font-size:12px;font-weight:600;color:var(--muted);user-select:none}
+  .famhead:hover{color:var(--txt)}
+  .famhead .caret{display:inline-block;font-size:10px;color:var(--dim);transition:transform .15s}
+  .famgroup.collapsed .caret{transform:rotate(-90deg)}
+  .famgroup.collapsed .famchildren{display:none}
+  .famhead .fam-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .famhead .fam-slug{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--dim);font-weight:500}
+  .famhead .cnt{margin-left:auto;color:var(--brand);font-weight:700;font-size:11px}
   .rescount{font-size:12px;color:var(--dim);padding:10px 14px;border-bottom:1px solid var(--line)}
   .detail{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
     padding:18px 19px 24px;position:sticky;top:120px}
@@ -312,6 +323,12 @@
       </div>
     </div>
 
+    <div class="card tier-committee" style="margin-top:14px">
+      <h3>🌾 Harvest funnel <span class="hint">🛡️ committee &amp; exec · from the Ledger</span></h3>
+      <div class="dim" style="font-size:12.5px;margin-bottom:10px">The pipeline by Stage — harvested candidates ripen into disclosures, which fan out into filings.</div>
+      <div class="funnel" id="funnel"></div>
+    </div>
+
     <div class="grid2 tier-committee" style="margin-top:14px">
       <div class="card"><h3>🔔 What needs attention</h3>
         <div class="ticket">Office action reply due — <b>P0006</b> <span class="who">counsel · running</span></div>
@@ -411,11 +428,9 @@
     <div class="anno"><span class="tag">TBD</span><div><b>How a potential's status is captured/updated isn't settled yet.</b> Options on the table: committee drags cards across the board; or a lightweight status file per potential; or the harvest spreadsheet the lawyers already keep. We'll decide with you before wiring it.</div></div>
 
     <h2>Sessions</h2>
-    <div class="session"><div class="q">2026<br>Q3</div><div style="flex:1"><b>Harvest — Q3 2026</b><div class="muted">Sep 18, 2026 · Focus: Memory fabric &amp; 3D packaging · Facilitator: You</div></div><span class="badge b-prov"><span class="dot" style="background:var(--prov)"></span>Scheduled</span></div>
-    <div class="session"><div class="q">2026<br>Q2</div><div style="flex:1"><b>Harvest — Q2 2026</b><div class="muted">Jun 12, 2026 · 11 potentials captured · 4 graduated to submit · 2 parked</div></div><span class="badge b-granted"><span class="dot" style="background:var(--ok)"></span>Complete</span></div>
-    <div class="session"><div class="q">2026<br>Q1</div><div style="flex:1"><b>Harvest — Q1 2026</b><div class="muted">Mar 07, 2026 · 8 potentials · 3 ripened &amp; filed · 3 parked</div></div><span class="badge b-granted"><span class="dot" style="background:var(--ok)"></span>Complete</span></div>
+    <div id="sessions"></div>
 
-    <h2>Idea stream <span class="dim" style="font-size:12px;font-weight:400">· potentials, with leads</span></h2>
+    <h2>Candidate stream <span class="dim" style="font-size:12px;font-weight:400">· harvested candidates, grouped by session</span></h2>
     <div class="kanban" id="kanban"></div>
   </section>
 
@@ -445,13 +460,7 @@
     <h1>Portfolio Health <span class="vault-tag" style="background:#2a2350;color:#b79cff;border-color:#3a2f5e">🛡️ Committee</span></h1>
     <div class="sub">The operational cockpit: what's filed, what's in motion, what needs a human, and what's on the clock. This is where the detailed status the dashboard hides for employees lives.</div>
     <h2>Pipeline</h2>
-    <div class="funnel">
-      <div class="stage"><div class="n">6</div><div class="l">Ideas / harvest</div></div>
-      <div class="stage"><div class="n">1</div><div class="l">In committee</div></div>
-      <div class="stage"><div class="n">3</div><div class="l">Drafting</div></div>
-      <div class="stage"><div class="n">10</div><div class="l">Provisional live</div></div>
-      <div class="stage"><div class="n">14</div><div class="l">Utility / exam</div></div>
-    </div>
+    <div class="funnel" id="healthFunnel"></div>
     <div class="grid2" style="margin-top:20px">
       <div class="card"><h3>⚠️ USPTO office actions — needs reply</h3>
         <table><thead><tr><th>Docket</th><th>Title</th><th>App #</th><th>Owner</th></tr></thead><tbody id="oaTable"></tbody></table>

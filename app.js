@@ -1,8 +1,14 @@
 /* Copyright (c) 2026 OXMIQ
  * OXMIQ Patent Portfolio Hub — hosted dashboard logic.
- * M365 sign-in (MSAL, delegated) -> Microsoft Graph reads of the OXMIQ-IPP site's
- * Portfolio & Ideas lists -> render the v3 UI. No data is embedded; everything is
+ * M365 sign-in (MSAL, delegated) -> Microsoft Graph read of the OXMIQ-IPP site's
+ * single Ledger list -> render the v3 UI. No data is embedded; everything is
  * fetched live as the signed-in user (SharePoint permissions enforce visibility).
+ *
+ * Data model (see doc/data-lifecycle-plan.md): the Ledger is the single source of
+ * truth. Rows are classified by Stage:
+ *   - Disclosed   -> a disclosure family header (FolderLink.Description = its slug)
+ *   - Filed/Granted/Published -> a filing (has Docket; DerivedFrom = parent slug)
+ *   - Harvested   -> a candidate (grouped by HarvestSession; no folder, no docket)
  */
 "use strict";
 const CFG = window.IPP_CONFIG;
@@ -25,10 +31,14 @@ function renderDiag() {
 const escp = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 /* ------------------------------------------------------------------- app state */
-let PF = [];        // portfolio filings  {d,t,s,ft,fd,ta,app,inv,sum,rel,pub}
-let IDEAS = [];     // ideas list         {t,k,st,lead,ta,mine,stage,sum}
-let MINE = [];      // my in-flight submissions
-let ME = null;      // {displayName, mail}
+let LEDGER = [];       // every mapped Ledger row
+let DISCLOSURES = [];  // Stage = Disclosed
+let FILINGS = [];      // Stage in {Filed, Granted, Published}
+let HARVESTED = [];    // Stage = Harvested
+let FAMILIES = [];     // [{disc, filings:[...]}] — disclosure -> its filings (fan-out)
+const BYKEY = new Map();      // key -> record (docket for filings, slug for disclosures)
+const FAM_BY_SLUG = new Map();// disclosure slug -> family {disc, filings}
+let ME = null;         // {displayName, mail}
 let msalApp = null;
 
 /* --------------------------------------------------------------------- MSAL */
@@ -106,53 +116,113 @@ async function graphGetAll(path, token) {
 
 async function listItems(listName, token) {
   const path = `/sites/${CFG.siteId}/lists/${encodeURIComponent(listName)}/items`
-    + `?$expand=fields&$select=id,createdBy&$top=200`;
+    + `?$expand=fields&$select=id&$top=500`;
   return graphGetAll(path, token);
 }
 
 /* ------------------------------------------------------------- field mapping */
 const d10 = s => (s ? String(s).slice(0, 10) : "");
-function mapPortfolio(items) {
-  return items.map(it => {
-    const f = it.fields || {};
-    return {
-      d: f.Docket || f.Title || "—", t: f.Title || "Untitled", s: f.Status || "Pending",
-      ft: f.FilingType || "", fd: d10(f.FilingDate), ta: f.TechArea || "",
-      app: f.ApplicationNo || "", inv: f.Inventors || "", sum: f.AISummary || "",
-      rel: f.RelatedDockets || "", cpc: f.CPC || "",
-      pub: f.PublishToPortfolio === true || f.PublishToPortfolio === 1,
-    };
-  }).sort((a, b) => (a.d || "").localeCompare(b.d || ""));
+const splitList = s => String(s || "").split(";").map(x => x.trim()).filter(Boolean);
+// A hyperlink column comes back from Graph as {Url, Description}; be defensive.
+function linkUrl(v) { return v && typeof v === "object" ? (v.Url || v.url || "") : (v || ""); }
+function linkDesc(v) { return v && typeof v === "object" ? (v.Description || v.description || "") : ""; }
+const truthy = v => v === true || v === 1 || v === "1" || v === "Yes" || v === "true";
+
+/** Map one raw Graph list item into a normalised Ledger record. */
+function mapRow(it) {
+  const f = it.fields || {};
+  const stage = f.Stage || "";
+  let kind = "other";
+  if (stage === "Disclosed") kind = "disclosure";
+  else if (stage === "Filed" || stage === "Granted" || stage === "Published") kind = "filing";
+  else if (stage === "Harvested") kind = "harvested";
+
+  const docket = f.Docket || "";
+  const folderSlug = linkDesc(f.FolderLink);   // for a disclosure this is its slug
+  // stable per-row key: docket for filings, folder slug for disclosures, else id
+  const key = kind === "filing" ? (docket || `F-${it.id}`)
+    : kind === "disclosure" ? (folderSlug || `D-${it.id}`)
+      : `H-${it.id}`;
+
+  return {
+    id: it.id, key, kind, stage,
+    title: f.Title || "Untitled",
+    desc: f.Description || "",
+    origin: f.Origin || "",
+    docket,
+    filingType: f.FilingType || "",
+    status: f.Status || "",
+    filingDate: d10(f.FilingDate),
+    inventors: f.Inventors || "",
+    techArea: f.TechArea || "",
+    cpc: f.CPC || "",
+    appNo: f.ApplicationNo || "",
+    summary: f.AISummary || "",
+    counsel: f.AssignedCounsel || "",
+    pub: truthy(f.PublishToPortfolio),
+    related: splitList(f.RelatedDockets),
+    derivedFrom: f.DerivedFrom || "",   // disclosure-level lineage (parent slug)
+    harvestSession: f.HarvestSession || "",
+    slug: folderSlug,
+    folderUrl: linkUrl(f.FolderLink),
+    folderId: f.FolderId || "",
+  };
 }
-function mapIdeas(items) {
-  const meMail = (ME && (ME.mail || ME.userPrincipalName) || "").toLowerCase();
-  return items.map(it => {
-    const f = it.fields || {};
-    const author = (it.createdBy?.user?.email || it.createdBy?.user?.displayName || "").toLowerCase();
-    const mine = !!meMail && (author === meMail || (f.Submitter || "").toLowerCase().includes((ME.displayName || "").toLowerCase()));
-    return {
-      t: f.Title || "Untitled", k: f.ItemKind || "", st: f.Stage || "", lead: f.Lead || f.Submitter || "",
-      ta: f.TechArea || "", ideaId: f.IdeaId || "", docket: f.Docket || "", sum: f.NovelIdea || f.AIFeedback || "",
-      mine, stage: STAGE_INDEX[f.Stage] || 0, fd: d10(f.SubmittedDate) || d10(f.Created),
-    };
+
+/** Build LEDGER + the classified buckets + the disclosure->filings families. */
+function classify(items) {
+  LEDGER = items.map(mapRow);
+  BYKEY.clear();
+  LEDGER.forEach(r => { if (!BYKEY.has(r.key)) BYKEY.set(r.key, r); });
+
+  DISCLOSURES = LEDGER.filter(r => r.kind === "disclosure")
+    .sort((a, b) => a.title.localeCompare(b.title));
+  FILINGS = LEDGER.filter(r => r.kind === "filing")
+    .sort((a, b) => a.docket.localeCompare(b.docket));
+  HARVESTED = LEDGER.filter(r => r.kind === "harvested");
+
+  // Fan-out: each disclosure -> the filings whose DerivedFrom = its slug, OR whose
+  // docket is listed in the disclosure's RelatedDockets.
+  FAM_BY_SLUG.clear();
+  const claimed = new Set();
+  FAMILIES = DISCLOSURES.map(disc => {
+    const rel = new Set(disc.related);
+    const filings = FILINGS.filter(fn =>
+      (disc.slug && fn.derivedFrom === disc.slug) || rel.has(fn.docket));
+    filings.forEach(fn => claimed.add(fn.key));
+    const fam = { disc, filings };
+    if (disc.slug) FAM_BY_SLUG.set(disc.slug, fam);
+    return fam;
   });
+  // any filing not attached to a disclosure -> an "Unassigned" family (defensive)
+  const orphans = FILINGS.filter(fn => !claimed.has(fn.key));
+  if (orphans.length) FAMILIES.push({ disc: null, filings: orphans });
 }
-const STAGE_INDEX = { "Submitted": 1, "Committee vet": 2, "Counsel engaged": 3, "Drafting": 4, "Filed": 5 };
 
 /* -------------------------------------------------------------------- render
-   (adapted from storyboard v3 — same DOM, data now comes from Graph)          */
+   (adapted from storyboard v3 — same DOM, data now comes from the Ledger)     */
 const STATUS = { "Office action": { c: "var(--oa)", b: "b-oa" }, "Pending": { c: "var(--pending)", b: "b-pending" },
   "Expired": { c: "var(--expired)", b: "b-expired" }, "Granted": { c: "var(--ok)", b: "b-granted" },
   "Provisional": { c: "var(--prov)", b: "b-prov" }, "Draft": { c: "var(--draft)", b: "b-draft" },
-  "Committee vet": { c: "var(--prov)", b: "b-prov" }, "Drafting": { c: "var(--draft)", b: "b-draft" },
-  "Counsel engaged": { c: "var(--prov)", b: "b-prov" }, "Submitted": { c: "var(--pending)", b: "b-pending" },
+  "Abandoned": { c: "var(--expired)", b: "b-expired" },
+  "Disclosed": { c: "var(--prov)", b: "b-prov" }, "Harvested": { c: "var(--draft)", b: "b-draft" },
   "Filed": { c: "var(--ok)", b: "b-granted" } };
 const AREA = { "Compute / Cores": "#5b8cff", "Software / Runtime": "#7c5cff", "Packaging": "#43b581",
   "Memory / Fabric": "#e0a13a", "Datacenter / System": "#f0616d" };
 const esc = escp;
-const pill = s => { const m = STATUS[s] || STATUS.Pending; return `<span class="badge ${m.b}"><span class="dot" style="background:${m.c}"></span>${esc(s)}</span>`; };
+const pill = s => { const m = STATUS[s] || STATUS.Pending; return `<span class="badge ${m.b}"><span class="dot" style="background:${m.c}"></span>${esc(s || "—")}</span>`; };
 const inv1 = s => (s || "").replace(" (first named)", "");
-const publishedPF = () => PF.filter(p => p.pub || role !== "employee");
+
+/* access gate: committee & exec see everything; others see only published filings */
+function canSeeAll() { return role === "committee" || role === "exec"; }
+function visibleFilings() { return canSeeAll() ? FILINGS : FILINGS.filter(f => f.pub); }
+function isMine(r) {
+  const nm = (ME && ME.displayName || "").trim().toLowerCase();
+  if (!nm) return false;
+  const inv = (r.inventors || "").toLowerCase();
+  if (inv.includes(nm)) return true;
+  return nm.split(/\s+/).filter(t => t.length > 2).some(t => inv.includes(t));
+}
 
 function tally(arr, key) { const o = {}; arr.forEach(p => { const k = p[key] || "—"; o[k] = (o[k] || 0) + 1; }); return o; }
 function bars(el, counts, colorFn) {
@@ -161,9 +231,23 @@ function bars(el, counts, colorFn) {
   el.innerHTML = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
     `<div class="barrow"><span class="k"><span class="swatch" style="background:${colorFn(k)}"></span>${esc(k)}</span><div class="bar"><i style="width:${Math.round(v / max * 100)}%;background:${colorFn(k)}"></i></div><span class="v tabnum">${v}</span></div>`).join("");
 }
+
+/* --- dashboard --- */
+function renderFunnel(el) {
+  if (!el) return;
+  const stages = [
+    ["Harvested", HARVESTED.length],
+    ["Disclosed", DISCLOSURES.length],
+    ["Filed", FILINGS.filter(f => f.stage === "Filed").length],
+  ];
+  const granted = FILINGS.filter(f => f.stage === "Granted" || f.stage === "Published").length;
+  if (granted) stages.push(["Granted", granted]);
+  el.innerHTML = stages.map(([l, n]) =>
+    `<div class="stage"><div class="n tabnum">${n}</div><div class="l">${esc(l)}</div></div>`).join("");
+}
 function renderDashboard() {
-  bars(document.getElementById("areaBars"), tally(PF, "ta"), k => AREA[k] || "#5b8cff");
-  const counts = tally(PF, "s"), seg = Object.entries(counts), tot = PF.length;
+  bars(document.getElementById("areaBars"), tally(FILINGS, "techArea"), k => AREA[k] || "#5b8cff");
+  const counts = tally(FILINGS, "status"), seg = Object.entries(counts), tot = FILINGS.length;
   let acc = 0;
   const parts = seg.map(([k, v]) => { const a = acc / (tot || 1) * 360, b = (acc + v) / (tot || 1) * 360; acc += v; return `${(STATUS[k] || STATUS.Pending).c} ${a}deg ${b}deg`; });
   const donut = document.getElementById("donut");
@@ -171,80 +255,156 @@ function renderDashboard() {
   const leg = document.getElementById("statusLegend");
   if (leg) leg.innerHTML = seg.map(([k, v]) => `<div><span class="swatch" style="background:${(STATUS[k] || STATUS.Pending).c}"></span>${esc(k)} · ${v}</div>`).join("");
   const rec = document.getElementById("recent");
-  if (rec) rec.innerHTML = [...PF].sort((a, b) => (b.fd || "").localeCompare(a.fd || "")).slice(0, 5).map(p =>
-    `<div class="ticket"><b>${esc(p.d)}</b> — ${esc(p.t)} <span class="who">${esc(p.ta || "")} · ${esc(p.fd || "")}</span></div>`).join("");
+  if (rec) rec.innerHTML = [...FILINGS].sort((a, b) => (b.filingDate || "").localeCompare(a.filingDate || "")).slice(0, 5).map(p =>
+    `<div class="ticket"><b>${esc(p.docket)}</b> — ${esc(p.title)} <span class="who">${esc(p.techArea || "")} · ${esc(p.filingDate || "")}</span></div>`).join("");
   const oa = document.getElementById("oaTable");
-  if (oa) oa.innerHTML = PF.filter(p => p.s === "Office action").map(p =>
-    `<tr><td class="docket">${esc(p.d)}</td><td>${esc(p.t)}</td><td class="muted">${esc(p.app)}</td><td>Counsel</td></tr>`).join("") || `<tr><td colspan="4" class="dim">No open office actions.</td></tr>`;
-  // top-line KPI counts
-  setText("kpiTotal", PF.length);
-  setText("kpiOA", PF.filter(p => p.s === "Office action").length);
-  setText("kpiPending", PF.filter(p => p.s === "Pending").length);
-  setText("kpiExpired", PF.filter(p => p.s === "Expired").length);
+  if (oa) oa.innerHTML = FILINGS.filter(p => p.status === "Office action").map(p =>
+    `<tr><td class="docket">${esc(p.docket)}</td><td>${esc(p.title)}</td><td class="muted">${esc(p.appNo)}</td><td>${esc(p.counsel || "Counsel")}</td></tr>`).join("") || `<tr><td colspan="4" class="dim">No open office actions.</td></tr>`;
+  // top-line KPI counts (from the Ledger)
+  setText("kpiTotal", FILINGS.length);
+  setText("kpiOA", FILINGS.filter(p => p.status === "Office action").length);
+  setText("kpiPending", FILINGS.filter(p => p.status === "Pending").length);
+  setText("kpiExpired", FILINGS.filter(p => p.status === "Expired").length);
+  renderFunnel(document.getElementById("funnel"));
+  renderFunnel(document.getElementById("healthFunnel"));
 }
 function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 
-/* explorer */
+/* --- explorer (filings grouped by disclosure family) --- */
 let facet = "all";
+const collapsed = new Set();   // slugs whose family group is collapsed
 function setFacet(f, el) { facet = f; document.querySelectorAll("#facets .facet").forEach(x => x.classList.remove("on")); el.classList.add("on"); renderGallery(); }
+function toggleFam(slug) { if (collapsed.has(slug)) collapsed.delete(slug); else collapsed.add(slug); renderGallery(); }
+
+function matchFacet(f) { return facet === "all" || f.status === facet || f.techArea === facet; }
+function matchSearch(f, q) {
+  if (!q) return true;
+  return [f.docket, f.title, f.status, f.techArea, f.appNo, f.inventors].join(" ").toLowerCase().includes(q);
+}
+/* families with only the currently-visible filings in each */
+function familiesForView() {
+  const all = canSeeAll();
+  const q = ((document.getElementById("q") || {}).value || "").toLowerCase();
+  const mineOn = !!(document.getElementById("mineChk") && document.getElementById("mineChk").checked);
+  return FAMILIES.map(fm => {
+    let kids = fm.filings.filter(f => all || f.pub);
+    if (mineOn) kids = kids.filter(isMine);
+    kids = kids.filter(f => matchSearch(f, q) && matchFacet(f));
+    return { disc: fm.disc, kids };
+  }).filter(fm => fm.kids.length);
+}
+function fcard(p) {
+  return `<div class="pcard" data-d="${esc(p.key)}" onclick="openPat('${esc(p.key)}')"><span class="docket">${esc(p.docket)}</span>
+    <div class="body"><div class="ttl">${esc(p.title)}${isMine(p) ? ' <span class="badge b-mine" style="margin-left:4px">mine</span>' : ''}</div>
+    <div class="meta">${pill(p.status)}<span>${esc(p.techArea || "")}</span><span>🧾 ${esc(p.appNo || "—")}</span></div></div></div>`;
+}
 function renderGallery() {
-  const mineOn = document.getElementById("mineChk") && document.getElementById("mineChk").checked;
+  const mineOn = !!(document.getElementById("mineChk") && document.getElementById("mineChk").checked);
   const mt = document.getElementById("mineToggle"); if (mt) mt.classList.toggle("on", mineOn);
-  const q = (document.getElementById("q").value || "").toLowerCase();
-  const src = mineOn ? MINE : publishedPF();
-  const rows = src.filter(p => { const hay = [p.d, p.t, p.s, p.ta, p.app, p.inv].join(" ").toLowerCase(); return hay.includes(q) && (facet === "all" || p.s === facet || p.ta === facet); });
-  document.getElementById("gallery").innerHTML = rows.map(p =>
-    `<div class="pcard" data-d="${esc(p.d)}" onclick="openPat('${esc(p.d)}')"><span class="docket">${esc(p.d)}</span>
-      <div class="body"><div class="ttl">${esc(p.t)}${p.mine ? ' <span class="badge b-mine" style="margin-left:4px">mine</span>' : ''}</div>
-      <div class="meta">${pill(p.s)}<span>${esc(p.ta || "")}</span><span>🧾 ${esc(p.app || "—")}</span></div></div></div>`).join("")
-    || `<div class="rescount">${mineOn ? "You have no in-flight ideas yet — Submit one." : "No filings match."}</div>`;
-  document.getElementById("resCount").textContent = `${rows.length} of ${src.length}${mineOn ? " · your ideas" : " filings"}${facet !== "all" ? " · " + facet : ""}`;
-  if (rows.length) openPat(rows[0].d);
+  const view = familiesForView();
+  const total = view.reduce((n, fm) => n + fm.kids.length, 0);
+  const gal = document.getElementById("gallery");
+  gal.innerHTML = view.map(fm => {
+    const slug = fm.disc ? fm.disc.slug : "unassigned";
+    const label = fm.disc ? fm.disc.title : "Unassigned filings";
+    const isColl = collapsed.has(slug);
+    return `<div class="famgroup${isColl ? " collapsed" : ""}">
+      <div class="famhead" onclick="toggleFam('${esc(slug)}')">
+        <span class="caret">▾</span>
+        <span class="fam-t">${esc(label)} <span class="fam-slug">${esc(slug)}</span></span>
+        <span class="cnt">${fm.kids.length}</span></div>
+      <div class="famchildren">${fm.kids.map(fcard).join("")}</div></div>`;
+  }).join("") || `<div class="rescount">${mineOn ? "No filings list you as an inventor." : canSeeAll() ? "No filings match." : "No published filings match. (In-review filings stay private to their members.)"}</div>`;
+
+  const totalSrc = (canSeeAll() ? FILINGS : FILINGS.filter(f => f.pub)).length;
+  document.getElementById("resCount").textContent =
+    `${total} of ${totalSrc} filings · ${view.length} famil${view.length === 1 ? "y" : "ies"}${mineOn ? " · yours" : ""}${facet !== "all" ? " · " + facet : ""}`;
+
+  const first = view.length ? view[0].kids[0].key : null;
+  if (first) openPat(first);
   else document.getElementById("detail").innerHTML = '<div class="dim" style="padding:30px;text-align:center">Nothing selected</div>';
 }
-function openPat(d) {
-  const mineOn = document.getElementById("mineChk") && document.getElementById("mineChk").checked;
-  const p = (mineOn ? MINE : publishedPF()).find(x => x.d === d) || PF.find(x => x.d === d) || MINE.find(x => x.d === d);
+
+function openPat(key) {
+  const p = BYKEY.get(key);
   if (!p) return;
-  document.querySelectorAll("#gallery .pcard").forEach(c => c.classList.toggle("sel", c.dataset.d === d));
-  const rel = (p.rel || "").split(";").map(s => s.trim()).filter(Boolean);
-  const mineTrack = p.mine ? `<div class="lbl">Progress</div><div class="flowbar">${["Submitted", "Committee vet", "Counsel engaged", "Drafting", "Filed"].map((s, i) => { const st = i + 1 < p.stage ? "done" : i + 1 === p.stage ? "active" : ""; return `<span class="step ${st}"><span class="c">${i + 1 < p.stage ? '✓' : i + 1}</span><span class="t">${s}</span></span>${i < 4 ? '<span class="ln"></span>' : ''}`; }).join("")}</div>` : "";
-  document.getElementById("detail").innerHTML = `
-    <div class="dk">OXMIQ.${esc(p.d)} · ${esc(p.ft || "")}</div>
-    <h2>${esc(p.t)}</h2>${pill(p.s)}
-    ${mineTrack}
-    <div class="abs">${esc(p.sum || "Summary pending (nightly agent).")}${p.sum ? "…" : ""}</div>
+  // gate: don't reveal an unpublished filing's detail to non-committee roles
+  if (p.kind === "filing" && !canSeeAll() && !p.pub) return;
+  document.querySelectorAll("#gallery .pcard").forEach(c => c.classList.toggle("sel", c.dataset.d === key));
+  document.getElementById("detail").innerHTML = p.kind === "disclosure" ? detailDisclosure(p) : detailFiling(p);
+}
+function detailFiling(p) {
+  const rel = p.related.filter(Boolean);
+  const chips = [];
+  if (p.derivedFrom && FAM_BY_SLUG.has(p.derivedFrom)) {
+    const d = FAM_BY_SLUG.get(p.derivedFrom).disc;
+    chips.push(`<span class="chip" onclick="openPat('${esc(d.key)}')">🗂️ ${esc(d.title)}</span>`);
+  }
+  rel.forEach(r => { if (BYKEY.has(r)) chips.push(`<span class="chip" onclick="openPat('${esc(r)}')">📄 ${esc(r)}</span>`); });
+  return `
+    <div class="dk">OXMIQ.${esc(p.docket)} · ${esc(p.filingType || "")}</div>
+    <h2>${esc(p.title)}</h2>${pill(p.status)}
+    <div class="abs">${esc(p.summary || "Summary pending (nightly agent).")}</div>
     <div class="metagrid">
-      <div class="metabox"><div class="ml">Application #</div><div class="mv">${esc(p.app || "—")}</div></div>
-      <div class="metabox"><div class="ml">Filing date</div><div class="mv">${esc(p.fd || "—")}</div></div>
-      <div class="metabox"><div class="ml">Technology area</div><div class="mv">${esc(p.ta || "—")}</div></div>
-      <div class="metabox"><div class="ml">Inventors</div><div class="mv">${esc(inv1(p.inv) || "—")}</div></div>
+      <div class="metabox"><div class="ml">Application #</div><div class="mv">${esc(p.appNo || "—")}</div></div>
+      <div class="metabox"><div class="ml">Filing date</div><div class="mv">${esc(p.filingDate || "—")}</div></div>
+      <div class="metabox"><div class="ml">Technology area</div><div class="mv">${esc(p.techArea || "—")}</div></div>
+      <div class="metabox"><div class="ml">Inventors</div><div class="mv">${esc(inv1(p.inventors) || "—")}</div></div>
     </div>
     <div class="lbl">Family / related</div>
-    <div class="chips">${rel.length ? rel.map(r => `<span class="chip" onclick="jumpDocket('${esc(r)}')">📄 ${esc(r)}</span>`).join("") : '<span class="chip" style="cursor:default">None linked</span>'}</div>
+    <div class="chips">${chips.length ? chips.join("") : '<span class="chip" style="cursor:default">None linked</span>'}</div>
     <div class="lbl">Status timeline</div>
     <div class="timeline">
-      <div class="tl"><b>Filed</b><div class="dt">${esc(p.fd || "—")}</div></div>
-      <div class="tl ${p.s === 'Office action' ? '' : 'd'}">${p.s === 'Office action' ? '<b>Office action — reply due</b>' : 'Under examination'}<div class="dt">USPTO</div></div>
-      <div class="tl d">${p.s === 'Expired' ? '<b>Provisional expired</b> (converted via children)' : 'Grant (target)'}<div class="dt">stealth until grant</div></div>
+      <div class="tl"><b>Filed</b><div class="dt">${esc(p.filingDate || "—")}</div></div>
+      <div class="tl ${p.status === 'Office action' ? '' : 'd'}">${p.status === 'Office action' ? '<b>Office action — reply due</b>' : 'Under examination'}<div class="dt">USPTO</div></div>
+      <div class="tl d">${p.status === 'Expired' ? '<b>Provisional expired</b> (converted via children)' : 'Grant (target)'}<div class="dt">stealth until grant</div></div>
     </div>`;
 }
-function jumpDocket(d) { if (!PF.find(x => x.d === d)) return; const mc = document.getElementById("mineChk"); if (mc) mc.checked = false; renderGallery(); openPat(d); }
+function detailDisclosure(p) {
+  const fam = FAM_BY_SLUG.get(p.slug);
+  const kids = fam ? fam.filings : [];
+  const vis = canSeeAll() ? kids : kids.filter(k => k.pub);
+  const chips = vis.map(k => `<span class="chip" onclick="openPat('${esc(k.key)}')">📄 ${esc(k.docket)}</span>`);
+  return `
+    <div class="dk">DISCLOSURE · ${esc(p.slug)}</div>
+    <h2>${esc(p.title)}</h2>
+    <span class="badge b-prov"><span class="dot" style="background:var(--prov)"></span>Disclosed</span>
+    <div class="abs">${esc(p.summary || p.desc || "Disclosure family — the founding record its filings derive from.")}</div>
+    <div class="metagrid">
+      <div class="metabox"><div class="ml">Filings in family</div><div class="mv">${kids.length}</div></div>
+      <div class="metabox"><div class="ml">Technology area</div><div class="mv">${esc(p.techArea || "—")}</div></div>
+      <div class="metabox"><div class="ml">Assigned counsel</div><div class="mv">${esc(p.counsel || "—")}</div></div>
+      <div class="metabox"><div class="ml">Origin</div><div class="mv">${esc(p.origin || "—")}</div></div>
+    </div>
+    <div class="lbl">Filings (fan-out)</div>
+    <div class="chips">${chips.length ? chips.join("") : '<span class="chip" style="cursor:default">No visible filings</span>'}</div>`;
+}
 
-/* harvest */
+/* --- harvesting (candidates grouped by HarvestSession) --- */
+function harvestSessions() {
+  const m = {};
+  HARVESTED.forEach(h => { const k = h.harvestSession || "Unsessioned"; (m[k] = m[k] || []).push(h); });
+  return Object.entries(m).sort((a, b) => b[0].localeCompare(a[0]));
+}
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function sessBadge(date) {
+  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(date);
+  return m ? `${m[1]}<br>${MONTHS[+m[2] - 1] || ""}` : "—";
+}
 function renderHarvest() {
-  const pots = IDEAS.filter(i => i.k === "Potential");
-  const cols = [["Captured", pots.filter(i => i.st === "Captured")], ["Counsel talking", pots.filter(i => i.st === "Counsel talking")],
-    ["Ready to submit", pots.filter(i => i.st === "Ready to submit")], ["Future queue / parked", pots.filter(i => i.st === "Future queue" || i.st === "Not pursuing")]];
-  // fall back to slicing if statuses aren't set on potentials
-  if (cols.every(([, it]) => it.length === 0) && pots.length) { cols[0][1] = pots.slice(0, 6); cols[1][1] = pots.slice(6, 8); }
-  const el = document.getElementById("kanban");
-  if (el) el.innerHTML = cols.map(([label, items]) =>
-    `<div class="col"><h4>${label} <span>${items.length}</span></h4>${items.map(i => `<div class="kt">${esc(i.t)}<div class="who">📂 ${esc(i.ta || "—")}${i.lead ? " · " + esc(i.lead) : ""}</div></div>`).join("") || '<div class="who" style="padding:6px;color:var(--dim)">—</div>'}</div>`).join("");
+  const sessions = harvestSessions();
+  const sess = document.getElementById("sessions");
+  if (sess) sess.innerHTML = sessions.map(([date, items]) =>
+    `<div class="session"><div class="q">${sessBadge(date)}</div><div style="flex:1"><b>Harvest — ${esc(date)}</b><div class="muted">${items.length} candidate${items.length === 1 ? "" : "s"} captured · awaiting committee triage</div></div><span class="badge b-draft"><span class="dot" style="background:var(--draft)"></span>Harvested</span></div>`).join("")
+    || '<div class="dim">No harvest sessions on file.</div>';
+  const kb = document.getElementById("kanban");
+  if (kb) kb.innerHTML = sessions.map(([date, items]) =>
+    `<div class="col"><h4>${esc(date)} <span>${items.length}</span></h4>${items.map(i =>
+      `<div class="kt">${esc(i.title)}<div class="who">📂 ${esc(i.techArea || "—")}</div></div>`).join("") || '<div class="who" style="padding:6px;color:var(--dim)">—</div>'}</div>`).join("");
 }
 
 /* role + nav (manual preview in v1; real data gating is M365 permissions) */
-const access = { employee: ["dash", "explorer", "submit", "harvest"],
+const access = { employee: ["dash", "explorer", "submit"],
   committee: ["dash", "explorer", "submit", "harvest", "review", "health", "drive"],
   exec: ["dash", "explorer", "submit", "harvest", "review", "health", "engage", "vault"],
   counsel: ["dash", "explorer", "drive"] };
@@ -317,19 +477,21 @@ async function boot() {
     try { const site = await graphGet(`/sites/${CFG.siteId}?$select=displayName,webUrl`, token); diag("Resolved site", true, site.displayName); }
     catch (e) { diag("Resolved site", false, `${e.code} — ${siteHint(e)}`); }
 
-    // Portfolio
-    let pfItems = [];
-    try { pfItems = await listItems(CFG.portfolioList, token); PF = mapPortfolio(pfItems); diag("Read Portfolio list", true, `${PF.length} items`); }
-    catch (e) { diag("Read Portfolio list", false, `${e.code} — ${listHint(e)}`); fatal("Couldn't read the Portfolio list", `${e.message}. ${listHint(e)}`); return; }
-
-    // Ideas
-    try { const ideaItems = await listItems(CFG.ideasList, token); IDEAS = mapIdeas(ideaItems); MINE = IDEAS.filter(i => i.mine && i.k === "Submission"); diag("Read Ideas list", true, `${IDEAS.length} items · ${MINE.length} yours`); }
-    catch (e) { IDEAS = []; MINE = []; diag("Read Ideas list", false, e.code || e.message); }
+    // The Ledger — single source of truth
+    try {
+      const items = await listItems(CFG.ledgerList, token);
+      classify(items);
+      diag("Read Ledger list", true, `${LEDGER.length} items · ${DISCLOSURES.length} disclosures, ${FILINGS.length} filings, ${HARVESTED.length} harvested`);
+    } catch (e) {
+      diag("Read Ledger list", false, `${e.code} — ${listHint(e)}`);
+      fatal("Couldn't read the Ledger list", `${e.message}. ${listHint(e)}`);
+      return;
+    }
 
     show("app");
     setRole("employee");
     renderAll();
-    diag("Rendered", true, `${PF.length} filings, ${IDEAS.length} ideas`);
+    diag("Rendered", true, `${FILINGS.length} filings in ${FAMILIES.length} families`);
   } catch (e) {
     diag("Boot failed", false, e.message || String(e));
     fatal("Something went wrong signing in", (e.errorCode ? e.errorCode + " — " : "") + (e.message || String(e)) + authHint(e));
