@@ -384,28 +384,12 @@
   <section class="page" id="page-submit">
     <h1>Submit an Idea</h1>
     <div class="sub">Got something worth protecting? Float it. Low-friction and encouraging — the goal is to capture ideas, not gate them. You keep secured visibility the whole way (see it under <b>Only mine</b> in Explorer).</div>
-    <div class="notice" id="submitOk">✓ Thanks — logged privately as <b>IDEA-0007</b>. We've emailed you and your co-inventors a link to the shared folder. Follow it in Explorer → Only mine.</div>
-
-    <form class="form" onsubmit="event.preventDefault();document.getElementById('submitOk').style.display='block';window.scrollTo(0,0)">
-      <div class="field"><label>Invention title</label><input placeholder="e.g. Adaptive scheduling across heterogeneous compute" required></div>
-      <div class="field"><label>Problem it solves</label><div class="h">What's the pain today, and why does it matter?</div><textarea placeholder="Describe the problem…"></textarea></div>
-      <div class="field"><label>The novel idea</label><div class="h">What's genuinely new vs. prior art you're aware of?</div><textarea placeholder="Describe the invention…"></textarea></div>
-      <div style="display:flex;gap:14px;flex-wrap:wrap">
-        <div class="field" style="flex:1;min-width:200px"><label>Technology area</label>
-          <select><option>Compute / Cores</option><option>Software / Runtime</option><option>Packaging</option><option>Memory / Fabric</option><option>Datacenter / System</option></select></div>
-        <div class="field" style="flex:1;min-width:220px"><label>Inventors <span class="dim" style="font-weight:400">· you're lead by default</span></label>
-          <div class="h">Add fellow inventors — resolved from the M365 directory.</div>
-          <div class="picker" id="picker" onclick="document.getElementById('ppInput').focus()">
-            <span class="person"><span class="avatar">AA</span> Anurag Agrawal <span class="x" title="lead">★</span></span>
-            <input id="ppInput" placeholder="Add by name or email…" oninput="ppSuggest(this.value)" autocomplete="off">
-          </div>
-          <div class="pp-suggest" id="ppSuggest"></div>
-        </div>
-      </div>
-      <div class="field"><label>Supporting material</label><div class="h">Confluence links, diagrams, specs, sketches.</div><input placeholder="Paste links or drop files…"></div>
-      <div class="anno"><span class="tag">M365</span><div>The inventor picker resolves names against the OXMIQ directory (Microsoft Graph people search). Everyone you add gets the shared docket folder &amp; email updates — no per-user access code on our side.</div></div>
-      <button class="btn btn-primary" type="submit">Share my idea</button>
-    </form>
+    <div class="card" style="max-width:660px">
+      <h3 style="margin-top:0">Start here — it takes a minute</h3>
+      <p class="dim" style="line-height:1.55">Give it a title and the problem it solves — that's all we need to start. On submit, a private <b>disclosure folder</b> is created and you (plus any co-inventors you list, first = primary) get an email with the link. Load specs, diagrams, or code into that folder whenever you're ready — polished or not. No score, no gate.</p>
+      <button class="btn btn-primary" onclick="openIntake()">Submit an Idea →</button>
+      <div class="anno" style="margin-top:16px"><span class="tag">PRIVATE</span><div>Your submission is visible only to you and the committee until it's ready — nobody sees another person's in-progress idea. Track your own under <b>Only mine</b> in Explorer.</div></div>
+    </div>
   </section>
 
   <!-- ============ HARVESTING (v2 style) ============ -->

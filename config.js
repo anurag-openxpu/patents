@@ -34,6 +34,12 @@ window.IPP_CONFIG = {
   // identity maps to a firm; matching CFG.counselFirm is the stand-in for the demo.
   counselFirm: "Adeli LLP",
 
+  // The "Submit an Idea" button opens this SharePoint list form (new tab). The
+  // submission flow (Power Automate) turns each new item into a Ledger row +
+  // disclosure folder + inventor access + email. Employees need Contribute on
+  // this list at go-live.
+  intakeFormUrl: "https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/Lists/Idea%20Intake/NewForm.aspx",
+
   // Show the diagnostics panel (auth + each Graph call). Leave true until go-live.
   diagnostics: true,
 };

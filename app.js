@@ -538,6 +538,13 @@ function exportChart() {
   downloadXlsx(`Patent_Filings_${today}.xlsx`, "Patent Filings", rows);
 }
 
+/* Submit an Idea — open the SharePoint intake form in a new tab (seamless SSO;
+   the submission flow does the rest). Source returns them here after submit. */
+function openIntake() {
+  const url = CFG.intakeFormUrl + "?Source=" + encodeURIComponent(location.href);
+  window.open(url, "_blank", "noopener");
+}
+
 /* --- minimal, dependency-free .xlsx writer --- */
 function xlsxEsc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function sheetXml(rows) {
