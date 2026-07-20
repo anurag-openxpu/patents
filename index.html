@@ -386,26 +386,6 @@
     <div class="sub">Got something worth protecting? Float it. Low-friction and encouraging — the goal is to capture ideas, not gate them. You keep secured visibility the whole way (see it under <b>Only mine</b> in Explorer).</div>
     <div class="notice" id="submitOk">✓ Thanks — logged privately as <b>IDEA-0007</b>. We've emailed you and your co-inventors a link to the shared folder. Follow it in Explorer → Only mine.</div>
 
-    <div class="ai-agent">
-      <div class="ai-badge">✨ AI</div>
-      <div style="flex:1">
-        <b>Not sure if it's patentable? Let the OXMIQ Patent Agent help.</b>
-        <div class="dim" style="margin-top:4px">A Claude agent scans your Confluence specs, design docs and code to surface likely-patentable ideas, checks them against existing filings, and drafts a first-pass application you can edit and submit.</div>
-        <div class="ai-actions">
-          <button class="btn btn-primary" onclick="document.getElementById('aiOut').style.display='block'">Scan my work for patentable ideas</button>
-          <button class="btn btn-ghost">Draft from a doc</button>
-        </div>
-        <div class="ai-out" id="aiOut">
-          <div class="dim" style="font-size:11.5px;margin-bottom:9px">✨ Found 3 candidate ideas in your recent work · ranked vs. existing portfolio</div>
-          <div class="ai-cand"><b>Speculative work-item prefetch across cores</b><span class="badge b-granted" style="margin-left:auto">Strong candidate</span></div>
-          <div class="ai-cand"><b>Adaptive interposer thermal routing</b><span class="badge b-prov" style="margin-left:auto">Adjacent to P0021P</span></div>
-          <div class="ai-cand"><b>Cache-coherence hint compression</b><span class="badge b-oa" style="margin-left:auto">Check overlap w/ P0011</span></div>
-          <div class="anno" style="margin-top:10px"><span class="tag">NO GRADE</span><div>You never see a score or pass/fail — the AI encourages and helps, never judges or gates. Detailed signals go to the committee, not shown back to you. Submit as-is or refine.</div></div>
-          <div class="ai-actions"><button class="btn btn-primary" onclick="document.querySelector('#page-submit .form input').focus()">Pre-fill my idea ↓</button><button class="btn btn-ghost">Refine with AI</button></div>
-        </div>
-      </div>
-    </div>
-
     <form class="form" onsubmit="event.preventDefault();document.getElementById('submitOk').style.display='block';window.scrollTo(0,0)">
       <div class="field"><label>Invention title</label><input placeholder="e.g. Adaptive scheduling across heterogeneous compute" required></div>
       <div class="field"><label>Problem it solves</label><div class="h">What's the pain today, and why does it matter?</div><textarea placeholder="Describe the problem…"></textarea></div>
