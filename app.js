@@ -540,9 +540,9 @@ function exportChart() {
 /* Submit an Idea — open the SharePoint intake form in a new tab (seamless SSO;
    the submission flow does the rest). Source returns them here after submit. */
 function openIntake() {
-  // Modern form (no IsDlg -> no classic ribbon). Styled via form formatting;
-  // a slim SharePoint frame remains (the no-IT / no-premium ceiling).
-  const url = CFG.intakeFormUrl + "?Source=" + encodeURIComponent(location.href);
+  // env=WebView gives a focused form — hides the left nav, suite bar, and site
+  // header. Source returns the user to the dashboard after Save.
+  const url = CFG.intakeFormUrl + "?env=WebView&Source=" + encodeURIComponent(location.href);
   window.open(url, "_blank", "noopener");
 }
 
