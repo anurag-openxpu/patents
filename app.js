@@ -34,7 +34,8 @@ const escp = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<":
 let LEDGER = [];       // every mapped Ledger row
 let DISCLOSURES = [];  // Stage = Disclosed
 let FILINGS = [];      // Stage in {Filed, Granted, Published}
-let SPEND = [];        // Legal Spend list rows (exec/counsel only)
+let SPEND = [];        // invoice rows off Legal-Finance (exec/counsel only)
+let BUDGET = 0;        // current-year budget target (from the Budget list)
 let HARVESTED = [];    // Stage = Harvested
 let FAMILIES = [];     // [{disc, filings:[...]}] — disclosure -> its filings (fan-out)
 const BYKEY = new Map();      // key -> record (docket for filings, slug for disclosures)
@@ -513,20 +514,34 @@ function renderAll() {
 }
 
 /* ---------------------------------------------------------------- legal spend
-   Exec/counsel view over the Legal Spend list (structured invoice records —
-   amounts are a real Currency field, not parsed from PDFs). Exec sees all;
-   counsel is scoped to their firm. Committee/employees never load it. */
+   Exec/counsel view over invoice metadata on the Legal-Finance library (one
+   source; Amount is a real Currency field on each invoice PDF — not parsed).
+   Exec sees all; counsel is scoped to their firm. Committee/employees never
+   load it. Each row links to the actual invoice. */
 function mapSpend(it) {
-  const f = it.fields || {};
+  const f = it.fields || {}, d = it.driveItem || {};
   return { amount: Number(f.Amount) || 0, firm: f.Firm || "", docket: f.Docket || "",
-    date: d10(f.InvoiceDate), status: f.Status || "" };
+    date: d10(f.InvoiceDate), status: f.Status || "",
+    name: d.name || f.FileLeafRef || f.Title || "invoice", url: d.webUrl || "" };
 }
 async function loadSpend(token) {
   try {
-    const rows = await listItems(CFG.legalSpendList, token);
-    SPEND = rows.map(mapSpend);
-    diag("Read Legal Spend", true, `${SPEND.length} invoice(s)`);
-  } catch (e) { SPEND = []; diag("Read Legal Spend", true, `skipped (${e.code || e.message})`); }
+    const path = `/sites/${CFG.siteId}/lists/${encodeURIComponent(CFG.legalFinanceLibrary)}/items`
+      + `?$expand=fields,driveItem&$top=500`;
+    const rows = await graphGetAll(path, token);
+    // only invoice files that have an Amount filled in
+    SPEND = rows.filter(it => it.driveItem && (it.fields || {}).Amount != null).map(mapSpend);
+    diag("Read Legal-Finance spend", true, `${SPEND.length} invoice(s) with amounts`);
+  } catch (e) { SPEND = []; diag("Read Legal-Finance spend", true, `skipped (${e.code || e.message})`); }
+}
+async function loadBudget(token) {
+  try {
+    const rows = await listItems(CFG.budgetList, token);
+    const yr = String(new Date().getFullYear());
+    const row = rows.map(r => r.fields || {}).find(f => String(f.Title) === yr);
+    BUDGET = row ? Number(row.Amount) || 0 : (Number(CFG.annualBudget) || 0);
+    diag("Read budget", true, `${yr}: ${money(BUDGET)}`);
+  } catch (e) { BUDGET = Number(CFG.annualBudget) || 0; diag("Read budget", true, `fallback ${money(BUDGET)}`); }
 }
 const money = n => "$" + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 function setMoney(id, n) { const el = document.getElementById(id); if (el) el.textContent = money(n); }
@@ -540,15 +555,27 @@ function renderSpend() {
   if (role === "counsel") rows = rows.filter(r => r.firm && r.firm === CFG.counselFirm);
   const now = new Date(), yr = now.getFullYear(), [lqs, lqe] = lastQuarterRange(now);
   const sum = a => a.reduce((s, r) => s + (r.amount || 0), 0);
+  const ytd = sum(rows.filter(r => r.date && new Date(r.date).getFullYear() === yr));
   setMoney("spTotal", sum(rows));
-  setMoney("spYTD", sum(rows.filter(r => r.date && new Date(r.date).getFullYear() === yr)));
+  setMoney("spYTD", ytd);
   setMoney("spLQ", sum(rows.filter(r => { if (!r.date) return false; const d = new Date(r.date); return d >= lqs && d < lqe; })));
   setMoney("spPending", sum(rows.filter(r => r.status === "Pending")));
+  const bw = document.getElementById("spBudgetWrap"), budget = BUDGET;
+  if (bw) {
+    if (budget > 0) {
+      bw.style.display = "";
+      const pct = Math.min(100, Math.round(ytd / budget * 100)), over = ytd > budget;
+      const bar = document.getElementById("spBudgetBar");
+      bar.style.width = pct + "%"; bar.style.background = over ? "var(--expired)" : "var(--ok)";
+      document.getElementById("spBudgetText").textContent =
+        `${money(ytd)} of ${money(budget)} annual target · ${pct}% used`;
+    } else { bw.style.display = "none"; }
+  }
   const t = document.getElementById("spTable");
   if (t) t.innerHTML = rows.length
-    ? [...rows].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 15).map(r =>
-      `<tr><td class="docket">${esc(r.docket || "—")}</td><td>${esc(r.firm || "")}</td><td class="muted">${esc(r.date || "")}</td><td>${money(r.amount)}</td><td>${esc(r.status || "")}</td></tr>`).join("")
-    : `<tr><td colspan="5" class="dim">No invoices logged yet — add them in the Legal Spend list (Open SharePoint).</td></tr>`;
+    ? [...rows].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 20).map(r =>
+      `<tr><td>${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>` : esc(r.name)}</td><td class="docket">${esc(r.docket || "—")}</td><td class="muted">${esc(r.date || "")}</td><td>${money(r.amount)}</td><td>${esc(r.status || "")}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="dim">No invoice amounts yet — open a PDF in Legal-Finance and fill its Amount + Status.</td></tr>`;
 }
 
 /* --------------------------------------------------------- status chart export
@@ -698,7 +725,7 @@ async function boot() {
 
     // role + counsel firm come from the Roster (fail-safe to Employee)
     const startRole = await resolveAccessFromRoster(token);
-    if (ENTITLED.includes("exec") || ENTITLED.includes("counsel")) await loadSpend(token);
+    if (ENTITLED.includes("exec") || ENTITLED.includes("counsel")) { await loadSpend(token); await loadBudget(token); }
 
     show("app");
     setRole(startRole);

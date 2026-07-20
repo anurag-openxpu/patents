@@ -27,8 +27,12 @@ window.IPP_CONFIG = {
   // Single source of truth: the Ledger List (Portfolio + Ideas collapsed into it).
   // Portfolio is a *view* of this List (Stage in {Filed, Granted, Published} & PublishToPortfolio).
   ledgerList: "Ledger",
-  // Legal Spend list (invoice records) — read by the exec/counsel Spend view only.
-  legalSpendList: "Legal Spend",
+  // Spend view reads invoice metadata off the Legal-Finance library (one source).
+  legalFinanceLibrary: "Legal-Finance",
+  // Budget list holds the annual target (one row per year, exec-editable in
+  // SharePoint — no redeploy). annualBudget is only the fallback if unreadable.
+  budgetList: "Budget",
+  annualBudget: 100000,
 
   // Counsel scope (PoC): the role-switcher's "Counsel" view shows the filings whose
   // AssignedCounsel = this firm — regardless of the publish flag. One firm today

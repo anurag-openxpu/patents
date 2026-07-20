@@ -404,15 +404,19 @@
   <!-- ============ SPEND (exec / counsel) ============ -->
   <section class="page" id="page-spend">
     <h1>Legal Spend</h1>
-    <div class="sub">Outside-counsel invoice spend, live from the Legal Spend list. Exec sees all; counsel sees their own firm.</div>
+    <div class="sub">Outside-counsel invoice spend, live from the Legal-Finance library. Exec sees all; counsel sees their own firm.</div>
     <div class="kpis">
       <div class="kpi" style="--accent:var(--brand2)"><div class="n" id="spTotal">$0</div><div class="l">Total spend</div></div>
       <div class="kpi" style="--accent:var(--brand)"><div class="n" id="spYTD">$0</div><div class="l">Year to date</div></div>
       <div class="kpi" style="--accent:var(--pending)"><div class="n" id="spLQ">$0</div><div class="l">Last quarter</div></div>
       <div class="kpi" style="--accent:var(--oa)"><div class="n" id="spPending">$0</div><div class="l">Pending payment</div></div>
     </div>
-    <div class="card" style="margin-top:16px"><h3>Invoices <span class="hint">from the Legal Spend list</span></h3>
-      <table><thead><tr><th>Docket</th><th>Firm</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody id="spTable"></tbody></table>
+    <div id="spBudgetWrap" class="card" style="margin-top:14px;display:none">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:8px"><span class="muted">Annual budget</span><span id="spBudgetText" class="muted"></span></div>
+      <div class="bar" style="height:10px"><i id="spBudgetBar" style="width:0%;background:var(--ok)"></i></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h3>Invoices <span class="hint">from the Legal-Finance library</span></h3>
+      <table><thead><tr><th>Invoice</th><th>Docket</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody id="spTable"></tbody></table>
     </div>
   </section>
 
