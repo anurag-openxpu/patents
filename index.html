@@ -49,6 +49,11 @@
   nav.tabs a.hidden{display:none}
   .hidden{display:none!important}
   .chartbar{display:flex;gap:12px;align-items:center;margin:2px 0 14px}
+  .sp-links{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:18px}
+  .sp-card{display:flex;flex-direction:column;gap:4px;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:inherit;transition:border-color .15s,transform .1s}
+  .sp-card:hover{border-color:var(--brand2);transform:translateY(-1px)}
+  .sp-card b{font-size:14px}
+  .sp-card span{font-size:11.5px;color:var(--muted)}
   .pill-count{background:var(--brand);color:#fff;font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px}
   .tier-tag{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;padding:1px 6px;border-radius:5px;font-weight:700}
   .tt-com{background:#2a2350;color:#b79cff} .tt-exec{background:#3a1e22;color:#f08a92} .tt-cou{background:#123524;color:#54d391}
@@ -285,12 +290,7 @@
     <a data-page="dash" class="active" onclick="go('dash')">🏠 Dashboard</a>
     <a data-page="explorer" onclick="go('explorer')">📊 Portfolio Explorer</a>
     <a data-page="submit" onclick="go('submit')">💡 Submit an Idea</a>
-    <a data-page="harvest" onclick="go('harvest')">🌾 Harvesting</a>
-    <a data-page="review" class="tier tier-committee" onclick="go('review')">🗳️ Review <span class="pill-count">1</span></a>
-    <a data-page="health" class="tier tier-committee" onclick="go('health')">🩺 Portfolio Health</a>
-    <a data-page="engage" class="tier tier-exec" onclick="go('engage')">🤝 Counsel Engagement</a>
-    <a data-page="vault" class="tier tier-exec" onclick="go('vault')">🔐 Legal &amp; Finance</a>
-    <a data-page="drive" class="tier tier-counsel" onclick="go('drive')">📂 Shared Drive</a>
+    <a data-page="sharepoint" onclick="go('sharepoint')">🗂️ Open SharePoint</a>
   </nav>
 </header>
 
@@ -392,109 +392,23 @@
     </div>
   </section>
 
-  <!-- ============ HARVESTING (v2 style) ============ -->
-  <section class="page" id="page-harvest">
-    <h1>Harvesting Sessions</h1>
-    <div class="sub">A quarterly session captures a stream of <b>potential</b> ideas — not formal submissions. Each gets a lead so counsel can reach out; the committee graduates the ripe ones to a formal Submit.</div>
-    <div class="anno"><span class="tag">SHAPE</span><div>Top of the funnel, kept lightweight — a title and a lead, nothing confidential-application-level until it's formally submitted. Sessions (below) + the idea stream board.</div></div>
-    <div class="anno"><span class="tag">TBD</span><div><b>How a potential's status is captured/updated isn't settled yet.</b> Options on the table: committee drags cards across the board; or a lightweight status file per potential; or the harvest spreadsheet the lawyers already keep. We'll decide with you before wiring it.</div></div>
-
-    <h2>Sessions</h2>
-    <div id="sessions"></div>
-
-    <h2>Candidate stream <span class="dim" style="font-size:12px;font-weight:400">· harvested candidates, grouped by session</span></h2>
-    <div class="kanban" id="kanban"></div>
-  </section>
-
-  <!-- ============ REVIEW (committee) ============ -->
-  <section class="page" id="page-review">
-    <h1>Application Review <span class="vault-tag" style="background:#2a2350;color:#b79cff;border-color:#3a2f5e">🛡️ Committee</span></h1>
-    <div class="sub">Vet, filter, update, and move applications through — every decision, score and stage-move logged for an audit trail. No email-only approvals.</div>
-    <div class="anno"><span class="tag">FLOW</span><div>One track: <b>Submitted → Committee vet → Approve to engage counsel → (Execs authorize spend) → Drafting → Filed</b>. The committee approves <i>engaging</i> counsel; executives authorize the <i>spend</i>.</div></div>
-    <div class="review-card">
-      <div class="rc-head"><span class="badge b-prov"><span class="dot" style="background:var(--prov)"></span>In committee vet</span><span class="t">Adaptive cache partitioning for shared cores</span></div>
-      <div class="flowbar">
-        <span class="step done"><span class="c">✓</span><span class="t">Submitted</span></span><span class="ln"></span>
-        <span class="step active"><span class="c">2</span><span class="t">Committee vet</span></span><span class="ln"></span>
-        <span class="step"><span class="c">3</span><span class="t">Engage counsel</span></span><span class="ln"></span>
-        <span class="step"><span class="c">4</span><span class="t">Drafting</span></span><span class="ln"></span>
-        <span class="step"><span class="c">5</span><span class="t">Filed</span></span></div>
-      <div class="rc-meta"><span>👤 L. Park</span><span>📂 Compute / Cores</span><span>🗳️ 3 approve · 1 hold</span><span>Novelty 4/5 · fit 5/5</span></div>
-      <div class="actions"><button class="btn btn-ok" onclick="act(this,'Approved → sent to Executives for spend authorization')">Approve to engage counsel</button>
-        <button class="btn btn-ghost" onclick="act(this,'Sent back for detail')">Request more info</button>
-        <button class="btn btn-bad" onclick="act(this,'Declined — logged with rationale')">Decline</button></div>
-    </div>
-    <div class="anno"><span class="tag">NOTE</span><div>Committee also sees full prosecution status here and in <b>Portfolio Health</b> — the office-action / pending / expired detail that's hidden from the all-staff dashboard.</div></div>
-  </section>
-
-  <!-- ============ HEALTH (committee) ============ -->
-  <section class="page" id="page-health">
-    <h1>Portfolio Health <span class="vault-tag" style="background:#2a2350;color:#b79cff;border-color:#3a2f5e">🛡️ Committee</span></h1>
-    <div class="sub">The operational cockpit: what's filed, what's in motion, what needs a human, and what's on the clock. This is where the detailed status the dashboard hides for employees lives.</div>
-    <h2>Pipeline</h2>
-    <div class="funnel" id="healthFunnel"></div>
-    <div class="grid2" style="margin-top:20px">
-      <div class="card"><h3>⚠️ USPTO office actions — needs reply</h3>
-        <table><thead><tr><th>Docket</th><th>Title</th><th>App #</th><th>Owner</th></tr></thead><tbody id="oaTable"></tbody></table>
-      </div>
-      <div class="card"><h3>⏳ Provisional conversion clock</h3>
-        <div class="barrow"><span class="k">P0013P → utility</span><div class="bar"><i style="width:20%;background:var(--expired)"></i></div><span class="v">soon</span></div>
-        <div class="barrow"><span class="k">P0017P → P0017 ✓</span><div class="bar"><i style="width:100%;background:var(--ok)"></i></div><span class="v">done</span></div>
-        <div class="barrow"><span class="k">P0018P → utility</span><div class="bar"><i style="width:60%;background:var(--oa)"></i></div><span class="v">~5mo</span></div>
-        <div class="barrow"><span class="k">P0022P → utility</span><div class="bar"><i style="width:82%;background:var(--ok)"></i></div><span class="v">~10mo</span></div>
-        <h3 style="margin-top:18px">📮 Reach-outs</h3>
-        <div class="ticket">Counsel requested figures — P0006 office action · <span class="dim">2 days ago</span></div>
-      </div>
+  <!-- ============ OPEN SHAREPOINT ============ -->
+  <section class="page" id="page-sharepoint">
+    <h1>Open in SharePoint</h1>
+    <div class="sub">This site is your window into the portfolio. The hands-on work — parking invoices, running a harvesting session, exchanging files with counsel — happens in SharePoint. Jump straight to the right place; you'll only see what your access allows.</div>
+    <div class="sp-links">
+      <a class="sp-card" href="https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP" target="_blank" rel="noopener"><b>🏠 IPP site home</b><span>The OXMIQ-IPP SharePoint site</span></a>
+      <a class="sp-card" href="https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/Submissions" target="_blank" rel="noopener"><b>📂 Disclosure folders</b><span>Disclosures + filings you can access</span></a>
+      <a class="sp-card tier tier-committee" href="https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/Harvesting" target="_blank" rel="noopener"><b>🌾 Harvesting</b><span>Session spreadsheets (from the template)</span></a>
+      <a class="sp-card tier tier-committee" href="https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/Committee" target="_blank" rel="noopener"><b>🛡️ Committee workspace</b><span>Committee-only library</span></a>
+      <a class="sp-card tier tier-exec" href="https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/Legal-Finance" target="_blank" rel="noopener"><b>🔐 Legal &amp; Finance</b><span>Invoices, receipts, agreements</span></a>
+      <a class="sp-card" href="https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/_layouts/15/viewlsts.aspx" target="_blank" rel="noopener"><b>🗂️ Site contents</b><span>All lists &amp; libraries</span></a>
     </div>
   </section>
 
-  <!-- ============ ENGAGE (exec) ============ -->
-  <section class="page" id="page-engage">
-    <h1>Counsel Engagement <span class="vault-tag">🔐 Executives</span></h1>
-    <div class="sub">The gate between an internally-approved application and money leaving the building. Committee approves the idea; executives authorize engaging and paying outside counsel.</div>
-    <div class="review-card">
-      <div class="rc-head"><span class="badge b-oa"><span class="dot" style="background:var(--oa)"></span>Awaiting authorization</span><span class="t">Adaptive cache partitioning — engage Adeli LLP</span></div>
-      <div class="rc-meta"><span>👤 L. Park</span><span>✅ Committee approved 1 day ago</span><span>💵 Est. $3,500 (provisional)</span></div>
-      <div class="actions"><button class="btn btn-ok" onclick="act(this,'Authorized · counsel + authors granted drive access · moved to Drafting')">Authorize &amp; engage</button>
-        <button class="btn btn-ghost" onclick="act(this,'Held')">Hold</button><button class="btn btn-bad" onclick="act(this,'Declined spend')">Decline spend</button></div>
-    </div>
-    <div class="anno"><span class="tag">FLOW</span><div>On sign-off, the docket folder is shared with counsel's <b>OXMIQ-assigned email only</b> (scoped, revocable), and the docket moves to Drafting.</div></div>
-  </section>
-
-  <!-- ============ VAULT (exec) ============ -->
-  <section class="page" id="page-vault">
-    <h1>Legal &amp; Finance <span class="vault-tag">🔐 Executives only</span></h1>
-    <div class="sub">The most restricted tier — counsel engagement contracts, fee schedules, invoices, receipts, payouts. You + CFO; counsel sees only what concerns them.</div>
-    <div class="kpis">
-      <div class="kpi" style="--accent:var(--brand2)"><div class="n">$182k</div><div class="l">Filing spend YTD</div></div>
-      <div class="kpi" style="--accent:var(--oa)"><div class="n">$21k</div><div class="l">Invoices awaiting approval</div></div>
-      <div class="kpi" style="--accent:var(--pending)"><div class="n">$44k</div><div class="l">Est. fees next 90 days</div></div>
-      <div class="kpi" style="--accent:var(--ok)"><div class="n">1</div><div class="l">Active counsel agreement</div></div>
-    </div>
-    <div class="card" style="margin-top:16px"><h3>🧾 Invoices &amp; receipts <span class="hint">from /Legal-Finance</span></h3>
-      <table><thead><tr><th>Invoice</th><th>Matter</th><th>Amount</th><th>Status</th></tr></thead><tbody>
-        <tr><td class="docket">INV-2041</td><td>P0020P–P0023P provisionals</td><td>$18,400</td><td><span class="badge b-oa"><span class="dot" style="background:var(--oa)"></span>Pending approval</span></td></tr>
-        <tr><td class="docket">INV-2038</td><td>P0006 office action reply</td><td>$6,200</td><td><span class="badge b-granted"><span class="dot" style="background:var(--ok)"></span>Paid</span></td></tr>
-        <tr><td class="docket">INV-2033</td><td>Q1 harvest → 3 filings</td><td>$12,900</td><td><span class="badge b-granted"><span class="dot" style="background:var(--ok)"></span>Paid</span></td></tr>
-      </tbody></table>
-    </div>
-  </section>
-
-  <!-- ============ DRIVE (counsel) ============ -->
-  <section class="page" id="page-drive">
-    <h1>Shared Drive <span class="vault-tag" style="background:#123524;color:#54d391;border-color:#1c5236">📂 Scoped access</span></h1>
-    <div class="sub">Where authors and engaged counsel exchange material — one folder per docket, visible only to that application's members. Counsel signs in and sees <b>only their engaged dockets</b>.</div>
-    <div class="anno"><span class="tag">ACCESS</span><div>A SharePoint folder shared with counsel via their <b>OXMIQ-assigned email</b> — scoped per docket, revocable, never site membership. Granted automatically when counsel is engaged. <b>The committee &amp; chair see every docket folder here</b> (they have edit on /Applications), so anyone on the committee can step in; external counsel sees only the dockets they're engaged on.</div></div>
-    <div class="card"><h3>📁 P0006 · Recursive command bundles <span class="badge b-oa" style="margin-left:auto"><span class="dot" style="background:var(--oa)"></span>Office action</span></h3>
-      <div class="drive-file"><span>📝</span><div><b>Office_Action_2026.pdf</b><div class="dim">USPTO</div></div><span class="who">Adeli LLP</span></div>
-      <div class="drive-file"><span>📐</span><div><b>Response_draft_v1.docx</b><div class="dim">for author review</div></div><span class="who">Adeli LLP</span></div>
-      <div class="drive-file"><span>🧾</span><div><b>As-filed spec + figures</b><div class="dim">03_Filed</div></div><span class="who">on file</span></div>
-      <div class="actions"><button class="btn btn-primary">Upload material</button><button class="btn btn-ghost">Request signature</button></div>
-    </div>
-  </section>
 </main>
 
-<footer>Storyboard v3 · non-functional shape over a real 24-docket snapshot · role switcher &amp; tabs are interactive; forms &amp; buttons illustrative · access shown here is enforced in production by M365 permissions, not by this page.</footer>
+<footer>OXMIQ Patent Portfolio Hub · live data via your M365 sign-in · access enforced by M365 permissions, not by this page.</footer>
 
 
   </div>

@@ -274,8 +274,8 @@ function renderDashboard() {
   setText("kpiOA", FILINGS.filter(p => p.status === "Office action").length);
   setText("kpiPending", FILINGS.filter(p => p.status === "Pending").length);
   setText("kpiExpired", FILINGS.filter(p => p.status === "Expired").length);
-  renderFunnel(document.getElementById("funnel"));
-  renderFunnel(document.getElementById("healthFunnel"));
+  const funnelEl = document.getElementById("funnel");
+  if (funnelEl) renderFunnel(funnelEl);
 }
 function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 
@@ -456,10 +456,10 @@ async function resolveAccessFromRoster(token) {
 
 /* role + nav — default and switch options come from ENTITLED (the Roster);
    the switcher only offers views the signed-in user actually holds. */
-const access = { employee: ["dash", "explorer", "submit"],
-  committee: ["dash", "explorer", "submit", "harvest", "review", "health", "drive"],
-  exec: ["dash", "explorer", "submit", "harvest", "review", "health", "engage", "vault"],
-  counsel: ["dash", "explorer", "drive"] };
+const access = { employee: ["dash", "explorer", "submit", "sharepoint"],
+  committee: ["dash", "explorer", "submit", "sharepoint"],
+  exec: ["dash", "explorer", "submit", "sharepoint"],
+  counsel: ["dash", "explorer", "sharepoint"] };
 let role = "employee", current = "dash";
 function setRole(r) {
   if (!ENTITLED.includes(r)) r = ENTITLED[0] || "employee";
@@ -507,7 +507,6 @@ function ppAdd(n) {
 function renderAll() {
   renderDashboard();
   renderGallery();
-  renderHarvest();
 }
 
 /* --------------------------------------------------------- status chart export
@@ -541,8 +540,9 @@ function exportChart() {
 /* Submit an Idea — open the SharePoint intake form in a new tab (seamless SSO;
    the submission flow does the rest). Source returns them here after submit. */
 function openIntake() {
-  // IsDlg=1 strips the SharePoint site chrome (left nav, suite bar) -> just the form.
-  const url = CFG.intakeFormUrl + "?IsDlg=1&Source=" + encodeURIComponent(location.href);
+  // Modern form (no IsDlg -> no classic ribbon). Styled via form formatting;
+  // a slim SharePoint frame remains (the no-IT / no-premium ceiling).
+  const url = CFG.intakeFormUrl + "?Source=" + encodeURIComponent(location.href);
   window.open(url, "_blank", "noopener");
 }
 
