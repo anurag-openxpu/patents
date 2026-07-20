@@ -426,16 +426,56 @@ function renderHarvest() {
       `<div class="kt">${esc(i.title)}<div class="who">📂 ${esc(i.techArea || "—")}</div></div>`).join("") || '<div class="who" style="padding:6px;color:var(--dim)">—</div>'}</div>`).join("");
 }
 
-/* role + nav (manual preview in v1; real data gating is M365 permissions) */
+/* --- role from the Roster List (UX only; real gating is M365 permissions) ---
+   Read the Roster, find the signed-in user's row, and derive which dashboard
+   views they may switch between + their counsel firm. Fail-safe: any error, no
+   row, inactive, or no read permission -> Employee. Never a security boundary —
+   the reconciler + SharePoint permissions are what actually enforce access. */
+let ENTITLED = ["employee"];
+const ROSTER_TO_VIEW = { committee: "committee", exec: "exec", counsel: "counsel" };
+async function resolveAccessFromRoster(token) {
+  const mine = [ME.mail, ME.userPrincipalName, ME.username]
+    .filter(Boolean).map(s => s.toLowerCase());
+  try {
+    const rows = await listItems("Roster", token);
+    const row = rows.map(r => r.fields || {})
+      .find(f => mine.includes(String(f.Email || "").trim().toLowerCase()));
+    if (!row || !truthy(row.Active)) { diag("Role from Roster", true, "Employee (not listed)"); return "employee"; }
+    const roles = (Array.isArray(row.Roles) ? row.Roles : splitList(row.Roles)).map(x => String(x).toLowerCase());
+    const views = [...new Set(roles.map(r => ROSTER_TO_VIEW[r]).filter(Boolean))];
+    if (row.CounselFirm) CFG.counselFirm = row.CounselFirm;   // firm from the roster, not hardcoded
+    ENTITLED = ["employee", ...views];
+    const start = ["exec", "committee", "counsel"].find(v => views.includes(v)) || "employee";
+    diag("Role from Roster", true, `${start} · entitled: ${ENTITLED.join(", ")}`);
+    return start;
+  } catch (e) {
+    diag("Role from Roster", true, `Employee (roster unreadable: ${e.code || e.message})`);
+    return "employee";
+  }
+}
+
+/* role + nav — default and switch options come from ENTITLED (the Roster);
+   the switcher only offers views the signed-in user actually holds. */
 const access = { employee: ["dash", "explorer", "submit"],
   committee: ["dash", "explorer", "submit", "harvest", "review", "health", "drive"],
   exec: ["dash", "explorer", "submit", "harvest", "review", "health", "engage", "vault"],
   counsel: ["dash", "explorer", "drive"] };
 let role = "employee", current = "dash";
 function setRole(r) {
+  if (!ENTITLED.includes(r)) r = ENTITLED[0] || "employee";
   role = r; document.getElementById("rolewrap").setAttribute("data-role", r);
-  document.querySelectorAll("#roleSwitch button").forEach(b => b.classList.toggle("active", b.dataset.role === r));
+  document.querySelectorAll("#roleSwitch button").forEach(b => {
+    b.classList.toggle("active", b.dataset.role === r);
+    b.classList.toggle("hidden", !ENTITLED.includes(b.dataset.role));
+  });
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("hidden", !access[r].includes(a.dataset.page)));
+  // status-chart export: non-employees only, counsel scoped to their firm
+  document.querySelectorAll(".needs-role").forEach(el => el.classList.toggle("hidden", r === "employee"));
+  const hintEl = document.getElementById("chartHint");
+  if (hintEl) {
+    const n = (r === "counsel" ? FILINGS.filter(f => f.counsel === CFG.counselFirm) : FILINGS).length;
+    hintEl.textContent = r === "counsel" ? `${n} of your firm's filings` : `${n} filings, live from the Ledger`;
+  }
   if (!access[r].includes(current)) go(access[r][0]);
   renderGallery();  // publish filter depends on role
 }
@@ -468,6 +508,101 @@ function renderAll() {
   renderDashboard();
   renderGallery();
   renderHarvest();
+}
+
+/* --------------------------------------------------------- status chart export
+   Generate counsel's filings chart on demand from the live Ledger — retires the
+   hand-maintained Status_Charts snapshots (one canonical format, no drift).
+   Role-gated to non-employees; counsel scoped to their firm. Inventors optional
+   (strip for external / VC / data-vault sharing). Client-side .xlsx, fully
+   self-contained: a store-only ZIP of inline-string OOXML — no library, no build. */
+function statusChartRows(includeInventors) {
+  let items = FILINGS.slice();
+  if (role === "counsel") items = items.filter(f => f.counsel && f.counsel === CFG.counselFirm);
+  items.sort((a, b) => (a.docket || "").localeCompare(b.docket || ""));
+  const header = ["Docket #", "Application #", "Filing Date", "Title", "Status"];
+  if (includeInventors) header.push("Inventors");
+  const rows = [header];
+  for (const f of items) {
+    const r = [f.docket, f.appNo, f.filingDate, f.title, f.status];
+    if (includeInventors) r.push(f.inventors);
+    rows.push(r);
+  }
+  return rows;
+}
+function exportChart() {
+  if (role === "employee") return;                 // UX guard — the button is hidden anyway
+  const inc = document.getElementById("incInv").checked;
+  const rows = statusChartRows(inc);
+  const today = new Date().toISOString().slice(0, 10);
+  downloadXlsx(`Patent_Filings_${today}.xlsx`, "Patent Filings", rows);
+}
+
+/* --- minimal, dependency-free .xlsx writer --- */
+function xlsxEsc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function sheetXml(rows) {
+  const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const body = rows.map((row, r) =>
+    `<row r="${r + 1}">` + row.map((v, c) =>
+      `<c r="${A[c]}${r + 1}" t="inlineStr"><is><t xml:space="preserve">${xlsxEsc(v)}</t></is></c>`).join("") + "</row>").join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${body}</sheetData></worksheet>`;
+}
+function crc32(bytes) {
+  let crc = ~0;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i];
+    for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+  }
+  return (~crc) >>> 0;
+}
+function zipStore(files) {
+  const enc = new TextEncoder();
+  const u16 = n => [n & 255, (n >> 8) & 255];
+  const u32 = n => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
+  const parts = [], central = []; let offset = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), data = f.data, crc = crc32(data);
+    const head = new Uint8Array([].concat(
+      u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0)));
+    parts.push(head, name, data);
+    central.push({ name, crc, size: data.length, offset });
+    offset += head.length + name.length + data.length;
+  }
+  const cd = []; let cdSize = 0;
+  for (const c of central) {
+    const rec = new Uint8Array([].concat(
+      u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(c.crc), u32(c.size), u32(c.size), u16(c.name.length),
+      u16(0), u16(0), u16(0), u16(0), u32(0), u32(c.offset)));
+    cd.push(rec, c.name); cdSize += rec.length + c.name.length;
+  }
+  const end = new Uint8Array([].concat(
+    u32(0x06054b50), u16(0), u16(0), u16(central.length), u16(central.length),
+    u32(cdSize), u32(offset), u16(0)));
+  const all = parts.concat(cd, [end]);
+  const out = new Uint8Array(all.reduce((n, a) => n + a.length, 0));
+  let p = 0; for (const a of all) { out.set(a, p); p += a.length; }
+  return out;
+}
+function downloadXlsx(filename, sheetName, rows) {
+  const enc = new TextEncoder();
+  const CT = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`;
+  const RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const WB = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${xlsxEsc(sheetName).slice(0, 31)}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+  const WBR = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`;
+  const files = [
+    { name: "[Content_Types].xml", data: enc.encode(CT) },
+    { name: "_rels/.rels", data: enc.encode(RELS) },
+    { name: "xl/workbook.xml", data: enc.encode(WB) },
+    { name: "xl/_rels/workbook.xml.rels", data: enc.encode(WBR) },
+    { name: "xl/worksheets/sheet1.xml", data: enc.encode(sheetXml(rows)) },
+  ];
+  const blob = new Blob([zipStore(files)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
 }
 
 /* ------------------------------------------------------------------- boot */
@@ -511,8 +646,11 @@ async function boot() {
       return;
     }
 
+    // role + counsel firm come from the Roster (fail-safe to Employee)
+    const startRole = await resolveAccessFromRoster(token);
+
     show("app");
-    setRole("employee");
+    setRole(startRole);
     renderAll();
     diag("Rendered", true, `${FILINGS.length} filings in ${FAMILIES.length} families`);
   } catch (e) {

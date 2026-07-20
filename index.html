@@ -47,6 +47,8 @@
   nav.tabs a.active{color:#fff;border-bottom-color:var(--brand)}
   nav.tabs a.tier{position:relative}
   nav.tabs a.hidden{display:none}
+  .hidden{display:none!important}
+  .chartbar{display:flex;gap:12px;align-items:center;margin:2px 0 14px}
   .pill-count{background:var(--brand);color:#fff;font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px}
   .tier-tag{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;padding:1px 6px;border-radius:5px;font-weight:700}
   .tt-com{background:#2a2350;color:#b79cff} .tt-exec{background:#3a1e22;color:#f08a92} .tt-cou{background:#123524;color:#54d391}
@@ -361,6 +363,12 @@
       <span class="facet" data-f="Software / Runtime" onclick="setFacet('Software / Runtime',this)">Software / Runtime</span>
       <span class="facet" data-f="Packaging" onclick="setFacet('Packaging',this)">Packaging</span>
       <label class="mine-toggle" id="mineToggle"><input type="checkbox" id="mineChk" onchange="renderGallery()"> Only mine</label>
+    </div>
+
+    <div class="chartbar needs-role hidden">
+      <button class="btn btn-ghost" onclick="exportChart()">⬇ Download filings (.xlsx)</button>
+      <label class="mine-toggle" style="margin-left:0"><input type="checkbox" id="incInv" checked> include inventors</label>
+      <span id="chartHint" style="font-size:11.5px;color:var(--muted)"></span>
     </div>
 
     <div class="explorer">
