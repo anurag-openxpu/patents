@@ -27,6 +27,8 @@ window.IPP_CONFIG = {
   // Single source of truth: the Ledger List (Portfolio + Ideas collapsed into it).
   // Portfolio is a *view* of this List (Stage in {Filed, Granted, Published} & PublishToPortfolio).
   ledgerList: "Ledger",
+  // Legal Spend list (invoice records) — read by the exec/counsel Spend view only.
+  legalSpendList: "Legal Spend",
 
   // Counsel scope (PoC): the role-switcher's "Counsel" view shows the filings whose
   // AssignedCounsel = this firm — regardless of the publish flag. One firm today

@@ -289,6 +289,7 @@
     <a data-page="explorer" onclick="go('explorer')">📊 Portfolio Explorer</a>
     <a data-page="submit" onclick="go('submit')">💡 Submit an Idea</a>
     <a data-page="sharepoint" onclick="go('sharepoint')">🗂️ Open SharePoint</a>
+    <a data-page="spend" onclick="go('spend')">💰 Spend</a>
   </nav>
 </header>
 
@@ -397,6 +398,21 @@
       <a class="sp-card tier tier-committee" href="https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/Committee" target="_blank" rel="noopener"><b>🛡️ Committee workspace</b><span>Committee-only library</span></a>
       <a class="sp-card tier tier-exec" href="https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/Legal-Finance" target="_blank" rel="noopener"><b>🔐 Legal &amp; Finance</b><span>Invoices, receipts, agreements</span></a>
       <a class="sp-card tier tier-committee" href="https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/_layouts/15/viewlsts.aspx" target="_blank" rel="noopener"><b>🗂️ Site contents</b><span>All lists &amp; libraries</span></a>
+    </div>
+  </section>
+
+  <!-- ============ SPEND (exec / counsel) ============ -->
+  <section class="page" id="page-spend">
+    <h1>Legal Spend</h1>
+    <div class="sub">Outside-counsel invoice spend, live from the Legal Spend list. Exec sees all; counsel sees their own firm.</div>
+    <div class="kpis">
+      <div class="kpi" style="--accent:var(--brand2)"><div class="n" id="spTotal">$0</div><div class="l">Total spend</div></div>
+      <div class="kpi" style="--accent:var(--brand)"><div class="n" id="spYTD">$0</div><div class="l">Year to date</div></div>
+      <div class="kpi" style="--accent:var(--pending)"><div class="n" id="spLQ">$0</div><div class="l">Last quarter</div></div>
+      <div class="kpi" style="--accent:var(--oa)"><div class="n" id="spPending">$0</div><div class="l">Pending payment</div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h3>Invoices <span class="hint">from the Legal Spend list</span></h3>
+      <table><thead><tr><th>Docket</th><th>Firm</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody id="spTable"></tbody></table>
     </div>
   </section>
 

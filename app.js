@@ -34,6 +34,7 @@ const escp = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<":
 let LEDGER = [];       // every mapped Ledger row
 let DISCLOSURES = [];  // Stage = Disclosed
 let FILINGS = [];      // Stage in {Filed, Granted, Published}
+let SPEND = [];        // Legal Spend list rows (exec/counsel only)
 let HARVESTED = [];    // Stage = Harvested
 let FAMILIES = [];     // [{disc, filings:[...]}] — disclosure -> its filings (fan-out)
 const BYKEY = new Map();      // key -> record (docket for filings, slug for disclosures)
@@ -458,8 +459,8 @@ async function resolveAccessFromRoster(token) {
    the switcher only offers views the signed-in user actually holds. */
 const access = { employee: ["dash", "explorer", "submit", "sharepoint"],
   committee: ["dash", "explorer", "submit", "sharepoint"],
-  exec: ["dash", "explorer", "submit", "sharepoint"],
-  counsel: ["dash", "explorer", "sharepoint"] };
+  exec: ["dash", "explorer", "submit", "sharepoint", "spend"],
+  counsel: ["dash", "explorer", "sharepoint", "spend"] };
 let role = "employee", current = "dash";
 function setRole(r) {
   if (!ENTITLED.includes(r)) r = ENTITLED[0] || "employee";
@@ -478,6 +479,7 @@ function setRole(r) {
   }
   if (!access[r].includes(current)) go(access[r][0]);
   renderGallery();  // publish filter depends on role
+  renderSpend();    // counsel scoping depends on role
 }
 function go(p) {
   if (!access[role].includes(p)) return; current = p;
@@ -507,6 +509,46 @@ function ppAdd(n) {
 function renderAll() {
   renderDashboard();
   renderGallery();
+  renderSpend();
+}
+
+/* ---------------------------------------------------------------- legal spend
+   Exec/counsel view over the Legal Spend list (structured invoice records —
+   amounts are a real Currency field, not parsed from PDFs). Exec sees all;
+   counsel is scoped to their firm. Committee/employees never load it. */
+function mapSpend(it) {
+  const f = it.fields || {};
+  return { amount: Number(f.Amount) || 0, firm: f.Firm || "", docket: f.Docket || "",
+    date: d10(f.InvoiceDate), status: f.Status || "" };
+}
+async function loadSpend(token) {
+  try {
+    const rows = await listItems(CFG.legalSpendList, token);
+    SPEND = rows.map(mapSpend);
+    diag("Read Legal Spend", true, `${SPEND.length} invoice(s)`);
+  } catch (e) { SPEND = []; diag("Read Legal Spend", true, `skipped (${e.code || e.message})`); }
+}
+const money = n => "$" + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+function setMoney(id, n) { const el = document.getElementById(id); if (el) el.textContent = money(n); }
+function lastQuarterRange(now) {
+  let y = now.getFullYear(), q = Math.floor(now.getMonth() / 3) - 1;
+  if (q < 0) { q = 3; y -= 1; }
+  return [new Date(y, q * 3, 1), new Date(y, q * 3 + 3, 1)];
+}
+function renderSpend() {
+  let rows = SPEND.slice();
+  if (role === "counsel") rows = rows.filter(r => r.firm && r.firm === CFG.counselFirm);
+  const now = new Date(), yr = now.getFullYear(), [lqs, lqe] = lastQuarterRange(now);
+  const sum = a => a.reduce((s, r) => s + (r.amount || 0), 0);
+  setMoney("spTotal", sum(rows));
+  setMoney("spYTD", sum(rows.filter(r => r.date && new Date(r.date).getFullYear() === yr)));
+  setMoney("spLQ", sum(rows.filter(r => { if (!r.date) return false; const d = new Date(r.date); return d >= lqs && d < lqe; })));
+  setMoney("spPending", sum(rows.filter(r => r.status === "Pending")));
+  const t = document.getElementById("spTable");
+  if (t) t.innerHTML = rows.length
+    ? [...rows].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 15).map(r =>
+      `<tr><td class="docket">${esc(r.docket || "—")}</td><td>${esc(r.firm || "")}</td><td class="muted">${esc(r.date || "")}</td><td>${money(r.amount)}</td><td>${esc(r.status || "")}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="dim">No invoices logged yet — add them in the Legal Spend list (Open SharePoint).</td></tr>`;
 }
 
 /* --------------------------------------------------------- status chart export
@@ -656,6 +698,7 @@ async function boot() {
 
     // role + counsel firm come from the Roster (fail-safe to Employee)
     const startRole = await resolveAccessFromRoster(token);
+    if (ENTITLED.includes("exec") || ENTITLED.includes("counsel")) await loadSpend(token);
 
     show("app");
     setRole(startRole);
