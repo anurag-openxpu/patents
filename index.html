@@ -69,7 +69,6 @@
     font-size:12.5px;color:#e9c88a;display:flex;gap:10px;align-items:flex-start}
   .anno .tag{background:#6b5a2e;color:#fff;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:6px;
     letter-spacing:.06em;flex:0 0 auto;margin-top:1px}
-  #rolewrap.hide-anno .anno{display:none}
 
   /* ---------- cards / kpis ---------- */
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
@@ -259,7 +258,7 @@
 </style>
 </head>
 <body>
-<div id="rolewrap" data-role="employee" class="hide-anno">
+<div id="rolewrap" data-role="employee">
   <div id="signin" class="overlay" style="display:none">
     <div class="authcard"><div class="mk">◈</div>
       <h1>OXMIQ Patent Portfolio Hub</h1>
@@ -278,7 +277,6 @@
     <div class="logo"><span class="mark">◈</span> Patent Portfolio Hub</div>
     <span class="badge-sb" style="color:#54d391;border-color:#1c5236;background:#0f2a1c">● LIVE · your portfolio</span>
     <div class="spacer"></div><span id="whoami" class="dim"></span><button id="btnSignout" class="btn btn-ghost btn-signout">Sign out</button>
-    <label class="anno-toggle"><input type="checkbox" id="annoChk" onchange="document.getElementById('rolewrap').classList.toggle('hide-anno',!this.checked)"> Storyboard notes</label>
     <div class="role-switch" id="roleSwitch">
       <button data-role="employee" class="active" onclick="setRole('employee')">👤 Employee</button>
       <button data-role="committee" onclick="setRole('committee')">🛡️ Committee</button>
@@ -298,8 +296,7 @@
   <!-- ============ DASHBOARD ============ -->
   <section class="page show" id="page-dash">
     <h1>Patent Portfolio Dashboard</h1>
-    <div class="sub">One glance at portfolio health. Everything here respects your access — inherited from M365, nothing to log into that we built.</div>
-    <div class="anno"><span class="tag">SHAPE</span><div>Cleaner landing than v2 — <b>no tiles linking to sections</b> (the top tabs do that). Charts &amp; status live here on the Dashboard, not in Explorer. <b>Health detail is tiered:</b> everyone sees the portfolio pulse &amp; tech mix; <b>office actions, pending-examination, expired and spend are committee/exec only</b> (try the role switcher).</div></div>
+    <div class="sub">The portfolio at a glance — filings, status, and pipeline, drawn live from the Ledger.</div>
 
     <div class="kpis">
       <div class="kpi" style="--accent:var(--brand)"><div class="n tabnum" id="kpiTotal">24</div><div class="l">Total filings</div><div class="d up">▲ 8 in the last year</div></div>
@@ -348,9 +345,7 @@
   <!-- ============ EXPLORER (incl My Ideas via "Only mine") ============ -->
   <section class="page" id="page-explorer">
     <h1>Portfolio Explorer</h1>
-    <div class="sub">The company-wide internal <b>Google Patents</b> — search every filing, open a full detail view. Tick <b>Only mine</b> to fold in your own ideas at any stage (that's your "My Ideas").</div>
-    <div class="anno"><span class="tag">VISIBILITY</span><div><b>Filed &amp; published dockets are company-wide.</b> Your own in-progress ideas appear only to you via <b>Only mine</b> — access is enforced by SharePoint per-user, so no one sees another person's unpublished work. This replaces a separate "My Ideas" tab: it's the same browse surface, filtered.</div></div>
-    <div class="anno"><span class="tag">GUARDRAILS</span><div>No filing-count leaderboards, no "top inventor" rankings. Inventorship is determined by counsel from the claims — believe you contributed? Raise it with the committee.</div></div>
+    <div class="sub">Search the portfolio — every filing by title, docket, inventor, application number, or classification. Tick <b>Only mine</b> to include your own ideas at any stage.</div>
 
     <div class="bigsearch"><span style="font-size:17px">🔎</span>
       <input id="q" placeholder="Search by title, docket, inventor, application #, or classification…" oninput="renderGallery()"></div>
@@ -383,7 +378,7 @@
   <!-- ============ SUBMIT ============ -->
   <section class="page" id="page-submit">
     <h1>Submit an Idea</h1>
-    <div class="sub">Got something worth protecting? Float it. Low-friction and encouraging — the goal is to capture ideas, not gate them. You keep secured visibility the whole way (see it under <b>Only mine</b> in Explorer).</div>
+    <div class="sub">Capture an idea in under a minute. We create a private disclosure folder and email you the link — nothing is shared until you're ready.</div>
     <div class="card" style="max-width:660px">
       <h3 style="margin-top:0">Start here — it takes a minute</h3>
       <p class="dim" style="line-height:1.55">Give it a title and the problem it solves — that's all we need to start. On submit, a private <b>disclosure folder</b> is created and you (plus any co-inventors you list, first = primary) get an email with the link. Load specs, diagrams, or code into that folder whenever you're ready — polished or not. No score, no gate.</p>
