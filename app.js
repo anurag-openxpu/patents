@@ -541,7 +541,8 @@ function exportChart() {
 /* Submit an Idea — open the SharePoint intake form in a new tab (seamless SSO;
    the submission flow does the rest). Source returns them here after submit. */
 function openIntake() {
-  const url = CFG.intakeFormUrl + "?Source=" + encodeURIComponent(location.href);
+  // IsDlg=1 strips the SharePoint site chrome (left nav, suite bar) -> just the form.
+  const url = CFG.intakeFormUrl + "?IsDlg=1&Source=" + encodeURIComponent(location.href);
   window.open(url, "_blank", "noopener");
 }
 
