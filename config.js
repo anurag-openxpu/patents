@@ -46,6 +46,7 @@ window.IPP_CONFIG = {
   // this list at go-live.
   intakeFormUrl: "https://netorgft13672293.sharepoint.com/sites/OXMIQ-IPP/Lists/Idea%20Intake/NewForm.aspx",
 
-  // Show the diagnostics panel (auth + each Graph call). Leave true until go-live.
-  diagnostics: true,
+  // Show the diagnostics panel (auth + each Graph call). Off for a clean UI;
+  // flip to true if you need to debug a sign-in/Graph issue.
+  diagnostics: false,
 };
