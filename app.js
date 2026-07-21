@@ -574,8 +574,8 @@ function renderSpend() {
   const t = document.getElementById("spTable");
   if (t) t.innerHTML = rows.length
     ? [...rows].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 20).map(r =>
-      `<tr><td>${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>` : esc(r.name)}</td><td class="docket">${esc(r.docket || "—")}</td><td class="muted">${esc(r.date || "")}</td><td>${money(r.amount)}</td><td>${esc(r.status || "")}</td></tr>`).join("")
-    : `<tr><td colspan="5" class="dim">No invoice amounts yet — open a PDF in Legal-Finance and fill its Amount + Status.</td></tr>`;
+      `<tr><td>${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>` : esc(r.name)}</td><td class="muted">${esc(r.date || "")}</td><td>${money(r.amount)}</td><td>${esc(r.status || "")}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="dim">No invoice amounts yet — open a PDF in Legal-Finance → fill Amount, InvoiceDate, Status.</td></tr>`;
 }
 
 /* --------------------------------------------------------- status chart export
