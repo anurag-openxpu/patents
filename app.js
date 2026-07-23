@@ -212,7 +212,14 @@ const STATUS = { "Office action": { c: "var(--oa)", b: "b-oa" }, "Pending": { c:
 const AREA = { "Compute / Cores": "#5b8cff", "Software / Runtime": "#7c5cff", "Packaging": "#43b581",
   "Memory / Fabric": "#e0a13a", "Datacenter / System": "#f0616d" };
 const esc = escp;
-const pill = s => { const m = STATUS[s] || STATUS.Pending; return `<span class="badge ${m.b}"><span class="dot" style="background:${m.c}"></span>${esc(s || "—")}</span>`; };
+// Employees see a coarse public status (Filed / Granted) — the granular USPTO
+// states (Pending, Office action, Expired, Abandoned) only confuse and are
+// committee/exec-facing. canSeeAll() roles keep the full status.
+const pill = s => {
+  const shown = canSeeAll() ? s : ((s === "Granted" || s === "Published") ? "Granted" : "Filed");
+  const m = STATUS[shown] || STATUS.Pending;
+  return `<span class="badge ${m.b}"><span class="dot" style="background:${m.c}"></span>${esc(shown || "—")}</span>`;
+};
 const inv1 = s => (s || "").replace(" (first named)", "");
 
 /* access gate, per role:
@@ -362,7 +369,8 @@ function detailFiling(p) {
   return `
     <div class="dk">OXMIQ.${esc(p.docket)} · ${esc(p.filingType || "")}</div>
     <h2>${esc(p.title)}</h2>${pill(p.status)}
-    ${folderBtn(p.folderUrl, "Open filing folder in SharePoint →")}
+    ${canSeeAll() ? folderBtn(p.folderUrl, "Open filing folder in SharePoint →")
+                  : '<div class="abs" style="color:var(--dim);font-size:12.5px;margin-top:8px">📄 Published filing — metadata only. Documents are access-controlled.</div>'}
     <div class="abs">${esc(p.summary || "Summary pending (nightly agent).")}</div>
     <div class="metagrid">
       <div class="metabox"><div class="ml">Application #</div><div class="mv">${esc(p.appNo || "—")}</div></div>
@@ -375,8 +383,8 @@ function detailFiling(p) {
     <div class="lbl">Status timeline</div>
     <div class="timeline">
       <div class="tl"><b>Filed</b><div class="dt">${esc(p.filingDate || "—")}</div></div>
-      <div class="tl ${p.status === 'Office action' ? '' : 'd'}">${p.status === 'Office action' ? '<b>Office action — reply due</b>' : 'Under examination'}<div class="dt">USPTO</div></div>
-      <div class="tl d">${p.status === 'Expired' ? '<b>Provisional expired</b> (converted via children)' : 'Grant (target)'}<div class="dt">stealth until grant</div></div>
+      <div class="tl ${canSeeAll() && p.status === 'Office action' ? '' : 'd'}">${canSeeAll() && p.status === 'Office action' ? '<b>Office action — reply due</b>' : 'Under examination'}<div class="dt">USPTO</div></div>
+      <div class="tl d">${canSeeAll() && p.status === 'Expired' ? '<b>Provisional expired</b> (converted via children)' : 'Grant (target)'}<div class="dt">stealth until grant</div></div>
     </div>`;
 }
 /* prominent SharePoint jump — the real counsel<->inventor exchange lives in the folder */
