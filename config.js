@@ -1,10 +1,26 @@
 /* Copyright (c) 2026 OXMIQ
  * OXMIQ Patent Portfolio Hub — runtime config.
- * These are PUBLIC identifiers (a browser SPA exposes them by design) — no secret here.
- * Data access is enforced by M365 sign-in + the app's Sites.Selected grant on the one site.
+ *
+ * THIS FILE IS WORLD-READABLE. It ships to the browser verbatim, so treat every
+ * value in it as published.
+ *
+ * What belongs here: identifiers the page needs before anyone has signed in —
+ * tenant/client/site IDs, list names, URLs. Those are PUBLIC by design (a browser
+ * SPA cannot hide them; they appear in the sign-in request itself) and they are not
+ * credentials: there is no client secret (MSAL uses PKCE), and knowing a site ID
+ * grants nothing, because every read carries the signed-in user's own token and
+ * Graph returns only what that account may see.
+ *
+ * What must NEVER be here: company data of any kind — budget figures, spend, firm
+ * or vendor names, docket titles, people. Not because it would break access
+ * control, but because it would be published outright, with no sign-in in front of
+ * it. Anything like that belongs in a permissioned SharePoint list the page reads
+ * AFTER sign-in, so M365 decides who sees it. (Two such values were removed from
+ * this file for exactly that reason: the annual counsel budget and the counsel firm
+ * name — both now read at runtime from Budget / Roster.)
  */
 window.IPP_CONFIG = {
-  // --- Entra app (from IT / issue #177) ---
+  // --- Entra app (registered by IT) ---
   tenantId: "0184cb4b-6696-4b38-8323-9f5cdeb5babc",          // OXMIQ tenant (verified)
   clientId: "fe1ffd79-a7e4-4029-acda-460b7fe38709",          // the registered SPA app
   redirectUri: "https://anurag-openxpu.github.io/patents/",  // must match Entra "SPA" redirect URI
@@ -12,7 +28,7 @@ window.IPP_CONFIG = {
   // --- Graph scopes requested at sign-in ---
   // Sites.Selected is the delegated model (app granted read on ONE site; intersected
   // with the user's own permission). If list-item reads 403 with only Sites.Selected,
-  // add the granular scopes below to this list AND have IT consent them + stamp the
+  // add the granular scopes below to this list and ask IT to approve them and
   // list /permissions — the diagnostics panel says exactly which call failed.
   scopes: ["User.Read", "Sites.Selected"],
   // Optional granular fallbacks (uncomment if item reads 403 under Sites.Selected alone):
@@ -30,15 +46,17 @@ window.IPP_CONFIG = {
   // Spend view reads invoice metadata off the Legal-Finance library (one source).
   legalFinanceLibrary: "Legal-Finance",
   // Budget list holds the annual target (one row per year, exec-editable in
-  // SharePoint — no redeploy). annualBudget is only the fallback if unreadable.
+  // SharePoint — no redeploy). There is deliberately NO hardcoded fallback: the
+  // figure is company financial data, so if the list is unreadable the page hides
+  // the target rather than publishing a number here.
   budgetList: "Budget",
-  annualBudget: 100000,
 
-  // Counsel scope (PoC): the role-switcher's "Counsel" view shows the filings whose
-  // AssignedCounsel = this firm — regardless of the publish flag. One firm today
-  // ("Adeli LLP" on all 24 dockets). In the real deployment the signed-in counsel's
-  // identity maps to a firm; matching CFG.counselFirm is the stand-in for the demo.
-  counselFirm: "Adeli LLP",
+  // Counsel scope: the "Counsel" view shows the filings whose AssignedCounsel
+  // matches the signed-in counsel's firm. Filled at runtime from that person's
+  // Roster row (Roster.CounselFirm) — intentionally EMPTY here, both because the
+  // firm we retain is not public and because an empty value fails closed: a
+  // counsel whose Roster row carries no firm matches no docket at all.
+  counselFirm: "",
 
   // The "Submit an Idea" button opens this SharePoint list form (new tab). The
   // submission flow (Power Automate) turns each new item into a Ledger row +

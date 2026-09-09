@@ -275,14 +275,15 @@ function renderDashboard() {
   const rec = document.getElementById("recent");
   if (rec) rec.innerHTML = [...FILINGS].sort((a, b) => (b.filingDate || "").localeCompare(a.filingDate || "")).slice(0, 5).map(p =>
     `<div class="ticket"><b>${esc(p.docket)}</b> — ${esc(p.title)} <span class="who">${esc(p.techArea || "")} · ${esc(p.filingDate || "")}</span></div>`).join("");
-  const oa = document.getElementById("oaTable");
-  if (oa) oa.innerHTML = FILINGS.filter(p => p.status === "Office action").map(p =>
-    `<tr><td class="docket">${esc(p.docket)}</td><td>${esc(p.title)}</td><td class="muted">${esc(p.appNo)}</td><td>${esc(p.counsel || "Counsel")}</td></tr>`).join("") || `<tr><td colspan="4" class="dim">No open office actions.</td></tr>`;
   // top-line KPI counts (from the Ledger)
   setText("kpiTotal", FILINGS.length);
   setText("kpiOA", FILINGS.filter(p => p.status === "Office action").length);
   setText("kpiPending", FILINGS.filter(p => p.status === "Pending").length);
   setText("kpiExpired", FILINGS.filter(p => p.status === "Expired").length);
+  // trend rendered live too — the figure it replaced was baked into the HTML
+  const yrAgo = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+  const fresh = FILINGS.filter(p => p.filingDate && p.filingDate >= yrAgo).length;
+  setText("kpiTrend", fresh ? `▲ ${fresh} in the last year` : "");
   const funnelEl = document.getElementById("funnel");
   if (funnelEl) renderFunnel(funnelEl);
 }
@@ -499,22 +500,6 @@ function go(p) {
 }
 function act(btn, msg) { btn.closest(".actions").innerHTML = `<span class="badge b-granted"><span class="dot" style="background:var(--ok)"></span>✓ ${esc(msg)}</span>`; }
 
-/* people picker (mock directory — production resolves via Graph /users) */
-const DIR = [["S. Nadar", "sundar.nadar@oxmiq.ai"], ["L. Park", "lena.park@oxmiq.ai"], ["Mark Leather", "mark.leather@oxmiq.ai"], ["Micah Villmow", "micah.villmow@oxmiq.ai"]];
-function ppSuggest(v) {
-  const box = document.getElementById("ppSuggest"); v = v.trim().toLowerCase();
-  if (!v) { box.classList.remove("show"); return; }
-  const hits = DIR.filter(([n, e]) => n.toLowerCase().includes(v) || e.includes(v)).slice(0, 5);
-  box.innerHTML = hits.map(([n, e]) => `<div class="pp-row" onclick="ppAdd('${n}','${e}')"><span class="avatar">${n.split(' ').map(x => x[0]).join('').slice(0, 2)}</span>${n}<span class="em">${e}</span></div>`).join("") || '<div class="pp-row dim">No match</div>';
-  box.classList.add("show");
-}
-function ppAdd(n) {
-  const inp = document.getElementById("ppInput");
-  const chip = document.createElement("span"); chip.className = "person";
-  chip.innerHTML = `<span class="avatar">${n.split(' ').map(x => x[0]).join('').slice(0, 2)}</span> ${n} <span class="x" onclick="this.parentNode.remove()">✕</span>`;
-  inp.parentNode.insertBefore(chip, inp); inp.value = ""; document.getElementById("ppSuggest").classList.remove("show");
-}
-
 function renderAll() {
   renderDashboard();
   renderGallery();
@@ -547,9 +532,11 @@ async function loadBudget(token) {
     const rows = await listItems(CFG.budgetList, token);
     const yr = String(new Date().getFullYear());
     const row = rows.map(r => r.fields || {}).find(f => String(f.Title) === yr);
-    BUDGET = row ? Number(row.Amount) || 0 : (Number(CFG.annualBudget) || 0);
-    diag("Read budget", true, `${yr}: ${money(BUDGET)}`);
-  } catch (e) { BUDGET = Number(CFG.annualBudget) || 0; diag("Read budget", true, `fallback ${money(BUDGET)}`); }
+    // No hardcoded fallback: the target is company financial data and config.js is
+    // world-readable. Unknown budget => 0 => renderSpend hides the target bar.
+    BUDGET = row ? Number(row.Amount) || 0 : 0;
+    diag("Read budget", true, row ? `${yr}: ${money(BUDGET)}` : `no ${yr} row — target hidden`);
+  } catch (e) { BUDGET = 0; diag("Read budget", true, `unreadable (${e.code || e.message}) — target hidden`); }
 }
 const money = n => "$" + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 function setMoney(id, n) { const el = document.getElementById(id); if (el) el.textContent = money(n); }
@@ -749,11 +736,11 @@ async function boot() {
 function scopesFrom(jwt) { try { const p = JSON.parse(atob(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); return "scp: " + (p.scp || p.roles || "?"); } catch (_) { return ""; } }
 function authHint(e) {
   const s = (e.errorCode || e.message || "").toLowerCase();
-  if (s.includes("aadsts650") || s.includes("consent")) return "  → Admin needs to grant the app's delegated Sites.Selected permission (issue #177).";
+  if (s.includes("aadsts650") || s.includes("consent")) return "  → This app needs an administrator to approve its permission. Contact IT.";
   if (s.includes("aadsts500113") || s.includes("redirect")) return "  → The redirect URI in Entra must exactly match " + CFG.redirectUri + " under the 'Single-page application' platform.";
   return "";
 }
-function siteHint(e) { return e.status === 403 ? "app not yet granted read on this site — IT must POST /sites/{id}/permissions with grantedTo.application (issue #177)" : (e.message || ""); }
+function siteHint(e) { return e.status === 403 ? "this app is not yet allowed to read the site — contact IT" : (e.message || ""); }
 function listHint(e) {
   if (e.status === 403) return "The app has the site but not list-item read. Under Sites.Selected this usually means the site grant is missing or needs the granular Lists.SelectedOperations.Selected scope + list /permissions grant.";
   if (e.status === 404) return "List not found or no permission stamped — check the site grant.";

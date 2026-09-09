@@ -181,14 +181,8 @@
     flex-wrap:wrap;gap:6px;align-items:center}
   .person{display:inline-flex;align-items:center;gap:7px;background:var(--panel3);border:1px solid var(--line);
     border-radius:20px;padding:3px 9px 3px 3px;font-size:12px}
-  .avatar{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--brand2),var(--brand));
-    display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
   .person .x{color:var(--dim);cursor:pointer;font-size:14px}
   .picker input{flex:1;min-width:150px;background:transparent;border:0;outline:none;color:var(--txt);font:inherit;font-size:13px}
-  .pp-suggest{background:var(--panel);border:1px solid var(--line);border-radius:9px;margin-top:5px;overflow:hidden;display:none}
-  .pp-suggest.show{display:block}
-  .pp-row{display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;font-size:13px}
-  .pp-row:hover{background:var(--panel2)} .pp-row .em{color:var(--dim);font-size:11.5px;margin-left:auto}
 
   .ai-agent{display:flex;gap:14px;background:linear-gradient(135deg,#1b1f42,#231a3a);border:1px solid #3a3570;
     border-radius:var(--radius);padding:15px 17px;margin:4px 0 20px}
@@ -300,10 +294,10 @@
     <div class="sub">The portfolio at a glance — filings, status, and pipeline, drawn live from the Ledger.</div>
 
     <div class="kpis">
-      <div class="kpi" style="--accent:var(--brand)"><div class="n tabnum" id="kpiTotal">24</div><div class="l">Total filings</div><div class="d up">▲ 8 in the last year</div></div>
-      <div class="kpi tier-committee" style="--accent:var(--oa)"><div class="n tabnum" id="kpiOA">5</div><div class="l">Office actions open 🛡️</div><div class="d">needs attorney reply</div></div>
-      <div class="kpi tier-committee" style="--accent:var(--pending)"><div class="n tabnum" id="kpiPending">17</div><div class="l">Pending examination 🛡️</div><div class="d">utility + provisional</div></div>
-      <div class="kpi tier-committee" style="--accent:var(--expired)"><div class="n tabnum" id="kpiExpired">2</div><div class="l">Expired 🛡️</div><div class="d">root provisionals lapsed</div></div>
+      <div class="kpi" style="--accent:var(--brand)"><div class="n tabnum" id="kpiTotal">—</div><div class="l">Total filings</div><div class="d up" id="kpiTrend"></div></div>
+      <div class="kpi tier-committee" style="--accent:var(--oa)"><div class="n tabnum" id="kpiOA">—</div><div class="l">Office actions open 🛡️</div><div class="d">needs attorney reply</div></div>
+      <div class="kpi tier-committee" style="--accent:var(--pending)"><div class="n tabnum" id="kpiPending">—</div><div class="l">Pending examination 🛡️</div><div class="d">utility + provisional</div></div>
+      <div class="kpi tier-committee" style="--accent:var(--expired)"><div class="n tabnum" id="kpiExpired">—</div><div class="l">Expired 🛡️</div><div class="d">root provisionals lapsed</div></div>
     </div>
 
     <div class="grid15" style="margin-top:16px">
@@ -328,18 +322,6 @@
       <div class="funnel" id="funnel"></div>
     </div>
 
-    <div class="grid2 tier-committee" style="margin-top:14px">
-      <div class="card"><h3>🔔 What needs attention</h3>
-        <div class="ticket">Office action reply due — <b>P0006</b> <span class="who">counsel · running</span></div>
-        <div class="ticket">4 more office actions open across P0003/07/08/09 <span class="who">committee + counsel</span></div>
-        <div class="ticket">1 idea awaiting committee vote <span class="who">Review queue</span></div>
-      </div>
-      <div class="card"><h3>🕑 Recent portfolio activity</h3>
-        <div class="ticket">P0023P — <b>Multi-die IC complexes</b> filed provisional <span class="who">Feb 2026</span></div>
-        <div class="ticket">P0017 — utility of P0017P filed <span class="who">Feb 2026</span></div>
-        <div class="ticket">P0001P / P0002P provisionals expired <span class="who">converted via children</span></div>
-      </div>
-    </div>
   </section>
 
   <!-- ============ EXPLORER (incl My Ideas via "Only mine") ============ -->
